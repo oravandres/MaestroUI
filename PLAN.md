@@ -477,9 +477,12 @@ internal_error      → show generic error, log details
 For chat with `stream: true`:
 
 ```typescript
-const response = await fetch(`${baseUrl}/api/v1/conversations/${id}/messages`, {
+// Auth is handled by the BFF proxy (nginx or Vite dev server) —
+// the browser never sees the raw API key.
+const response = await fetch(`/api/v1/conversations/${id}/messages`, {
   method: 'POST',
-  headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+  headers: { 'Content-Type': 'application/json' },
+  credentials: 'same-origin',
   body: JSON.stringify({ message, mode, stream: true }),
 });
 
