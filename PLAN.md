@@ -175,7 +175,7 @@ MaestroUI/
 
 | Variable | Default (dev) | Description |
 |----------|---------------|-------------|
-| `VITE_MAESTRO_API_BASE_URL` | `http://localhost:8080` | Maestro API base URL |
+| `VITE_MAESTRO_API_BASE_URL` | `http://localhost:8002` | Maestro API base URL |
 
 ---
 
@@ -188,9 +188,9 @@ Overview of the entire platform.
 Data sources:
 
 ```http
-GET /api/dashboard/summary
-GET /api/systems
-GET /api/monitoring/events?limit=10
+GET /api/v1/dashboard/summary
+GET /api/v1/systems
+GET /api/v1/monitoring/events?limit=10
 ```
 
 Content:
@@ -209,12 +209,12 @@ Primary conversational interface.
 Data sources:
 
 ```http
-GET    /api/conversations
-POST   /api/conversations
-GET    /api/conversations/{id}
-PATCH  /api/conversations/{id}
-DELETE /api/conversations/{id}
-POST   /api/conversations/{id}/messages (SSE when stream=true)
+GET    /api/v1/conversations
+POST   /api/v1/conversations
+GET    /api/v1/conversations/{id}
+PATCH  /api/v1/conversations/{id}
+DELETE /api/v1/conversations/{id}
+POST   /api/v1/conversations/{id}/messages (SSE when stream=true)
 ```
 
 Content:
@@ -241,9 +241,9 @@ Inspect and monitor agentic RAG runs.
 Data sources:
 
 ```http
-GET  /api/rag/runs
-GET  /api/rag/runs/{id}
-POST /api/rag/agentic
+GET  /api/v1/rag/runs
+GET  /api/v1/rag/runs/{id}
+POST /api/v1/rag/agentic
 ```
 
 Content:
@@ -266,15 +266,15 @@ Manage the private knowledge base that feeds RAG.
 Data sources:
 
 ```http
-GET   /api/knowledge/sources
-POST  /api/knowledge/sources
-GET   /api/knowledge/sources/{id}
-PATCH /api/knowledge/sources/{id}
-GET   /api/knowledge/documents
-POST  /api/knowledge/documents
-POST  /api/knowledge/documents/upload
-GET   /api/knowledge/documents/{id}
-POST  /api/knowledge/documents/{id}/index
+GET   /api/v1/knowledge/sources
+POST  /api/v1/knowledge/sources
+GET   /api/v1/knowledge/sources/{id}
+PATCH /api/v1/knowledge/sources/{id}
+GET   /api/v1/knowledge/documents
+POST  /api/v1/knowledge/documents
+POST  /api/v1/knowledge/documents/upload
+GET   /api/v1/knowledge/documents/{id}
+POST  /api/v1/knowledge/documents/{id}/index
 ```
 
 Content:
@@ -293,13 +293,13 @@ Monitor all background jobs across the platform.
 Data sources:
 
 ```http
-GET  /api/jobs
-POST /api/jobs
-GET  /api/jobs/{id}
-POST /api/jobs/{id}/cancel
-GET  /api/jobs/{id}/events
-GET  /api/queues
-GET  /api/workers
+GET  /api/v1/jobs
+POST /api/v1/jobs
+GET  /api/v1/jobs/{id}
+POST /api/v1/jobs/{id}/cancel
+GET  /api/v1/jobs/{id}/events
+GET  /api/v1/queues
+GET  /api/v1/workers
 ```
 
 Content:
@@ -319,10 +319,10 @@ Submit code for AI-powered review.
 Data sources:
 
 ```http
-POST /api/coding/review
-POST /api/coding/architecture
-POST /api/coding/refactor-plan
-POST /api/coding/security-review
+POST /api/v1/coding/review
+POST /api/v1/coding/architecture
+POST /api/v1/coding/refactor-plan
+POST /api/v1/coding/security-review
 ```
 
 Content:
@@ -343,12 +343,12 @@ Generate images, video, and audio.
 Data sources:
 
 ```http
-POST /api/media/image
-POST /api/media/video
-POST /api/audio/tts
-POST /api/audio/asr
-GET  /api/media/assets
-GET  /api/media/assets/{id}
+POST /api/v1/media/image
+POST /api/v1/media/video
+POST /api/v1/audio/tts
+POST /api/v1/audio/asr
+GET  /api/v1/media/assets
+GET  /api/v1/media/assets/{id}
 ```
 
 Content:
@@ -369,11 +369,11 @@ Monitor infrastructure health and model status.
 Data sources:
 
 ```http
-GET  /api/systems
-GET  /api/systems/{id}
-GET  /api/models
-GET  /api/models/{id}
-POST /api/systems/refresh
+GET  /api/v1/systems
+GET  /api/v1/systems/{id}
+GET  /api/v1/models
+GET  /api/v1/models/{id}
+POST /api/v1/systems/refresh
 ```
 
 Content:
@@ -396,8 +396,8 @@ Structured reasoning tools powered by Sparky.
 Data sources:
 
 ```http
-POST /api/reasoning/analyze
-POST /api/reasoning/compare
+POST /api/v1/reasoning/analyze
+POST /api/v1/reasoning/compare
 ```
 
 Content:
@@ -415,8 +415,8 @@ Platform configuration.
 Data sources:
 
 ```http
-GET   /api/settings
-PATCH /api/settings
+GET   /api/v1/settings
+PATCH /api/v1/settings
 ```
 
 Content:
@@ -434,9 +434,9 @@ Platform observability.
 Data sources:
 
 ```http
-GET /api/monitoring/overview
-GET /api/monitoring/events
-GET /api/monitoring/alerts
+GET /api/v1/monitoring/overview
+GET /api/v1/monitoring/events
+GET /api/v1/monitoring/alerts
 ```
 
 Content:
@@ -453,13 +453,11 @@ Content:
 
 ### 7.1 Auth
 
-All requests include:
+API Key Authentication is used between MaestroUI and Maestro. Since a browser SPA cannot securely hold a static API key, one of the following must be implemented:
+1. **Backend-for-Frontend (BFF)**: Nginx or a lightweight proxy handles injecting the `Authorization: Bearer <MAESTRO_API_KEY>` header to backend calls.
+2. **Session Cookies**: The API supports HTTP-only, secure cookies for session authentication instead of raw API keys in the browser.
 
-```http
-Authorization: Bearer <MAESTRO_API_KEY>
-```
-
-Stored in environment config, never in client bundles in production.
+For local development, the key can be proxied through Vite's dev server.
 
 ### 7.2 Error Handling
 
@@ -479,7 +477,7 @@ internal_error      → show generic error, log details
 For chat with `stream: true`:
 
 ```typescript
-const response = await fetch(`${baseUrl}/api/conversations/${id}/messages`, {
+const response = await fetch(`${baseUrl}/api/v1/conversations/${id}/messages`, {
   method: 'POST',
   headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
   body: JSON.stringify({ message, mode, stream: true }),
