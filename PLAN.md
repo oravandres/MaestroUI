@@ -456,15 +456,22 @@ Content:
 Maestro requires `Authorization: Bearer <MAESTRO_API_KEY>` on all `/api/v1/*` endpoints. A browser SPA cannot securely hold a static API key, so all API traffic flows through a reverse proxy that injects the header:
 
 ```text
-Production (nginx):
+Production (nginx BFF):
   Browser  ─── /api/v1/* ───►  nginx  ─── Authorization: Bearer <key> ───►  Maestro :8002
   Browser  ─── /* ──────────►  nginx  ─── static SPA files
 
-Development (Vite proxy):
-  Browser  ─── /api/v1/* ───►  Vite dev server  ───►  Maestro :8002
+Development (direct + future Vite proxy):
+  Current:   client.ts fetches http://localhost:8002 directly (no auth injection yet)
+  Target:    Vite dev server proxies /api/v1/* to localhost:8002, injecting the header
 ```
 
-The existing `VITE_MAESTRO_API_BASE_URL` env var (`http://localhost:8002` in dev) is used by the `client.ts` fetch wrapper to construct full URLs during development. In production, set it to empty or `/` so requests use relative paths through the nginx proxy.
+**Current state:** The existing `client.ts` uses `VITE_MAESTRO_API_BASE_URL` (defaults to `http://localhost:8002` in dev) to construct absolute URLs and calls Maestro directly. This works today because the backend does not yet enforce API key auth. The code throws if this variable is empty in production.
+
+**Target state:** Once API key auth is enforced (Maestro Phase 1 remaining work):
+1. **Development**: Configure `vite.config.ts` with a proxy rule that forwards `/api/v1/*` to `http://localhost:8002` and injects the `Authorization` header from a local `.env` file. Update `client.ts` to use relative paths when `VITE_MAESTRO_API_BASE_URL` is unset.
+2. **Production**: nginx serves the SPA and proxies `/api/v1/*` to Maestro, injecting the header. `VITE_MAESTRO_API_BASE_URL` is not set (relative paths).
+
+This transition is tracked as a Phase 2 task (Navigation & Layout) since it requires coordinating with the Maestro auth middleware rollout.
 
 The browser never sees or sends the raw API key.
 
@@ -546,6 +553,8 @@ Tasks:
 - [ ] Dashboard summary stats (conversations, jobs, models).
 - [ ] Recent events timeline on dashboard.
 - [ ] Quick-action buttons.
+- [ ] Configure Vite dev proxy for `/api/v1/*` → `localhost:8002` with auth header injection (coordinate with Maestro API key auth rollout).
+- [ ] Update `client.ts` to support relative paths when `VITE_MAESTRO_API_BASE_URL` is unset (for production nginx BFF).
 
 Acceptance criteria:
 
