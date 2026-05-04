@@ -72,7 +72,7 @@ MaestroUI talks only to the Maestro backend API. It never calls Sparky or Darkba
 MaestroUI/
 ├── src/
 │   ├── api/
-│   │   ├── client.ts          # Fetch wrapper with auth, request IDs
+│   │   ├── client.ts          # Fetch wrapper, BFF-aware base URL
 │   │   ├── query-client.ts    # TanStack Query config
 │   │   ├── health.ts          # Health check hooks
 │   │   ├── systems.ts         # Systems API hooks
@@ -451,13 +451,22 @@ Content:
 
 ## 7. API Integration Patterns
 
-### 7.1 Auth
+### 7.1 Auth and API Routing
 
-API Key Authentication is used between MaestroUI and Maestro. Since a browser SPA cannot securely hold a static API key, one of the following must be implemented:
-1. **Backend-for-Frontend (BFF)**: Nginx or a lightweight proxy handles injecting the `Authorization: Bearer <MAESTRO_API_KEY>` header to backend calls.
-2. **Session Cookies**: The API supports HTTP-only, secure cookies for session authentication instead of raw API keys in the browser.
+Maestro requires `Authorization: Bearer <MAESTRO_API_KEY>` on all `/api/v1/*` endpoints. A browser SPA cannot securely hold a static API key, so all API traffic flows through a reverse proxy that injects the header:
 
-For local development, the key can be proxied through Vite's dev server.
+```text
+Production (nginx):
+  Browser  ─── /api/v1/* ───►  nginx  ─── Authorization: Bearer <key> ───►  Maestro :8002
+  Browser  ─── /* ──────────►  nginx  ─── static SPA files
+
+Development (Vite proxy):
+  Browser  ─── /api/v1/* ───►  Vite dev server  ───►  Maestro :8002
+```
+
+The existing `VITE_MAESTRO_API_BASE_URL` env var (`http://localhost:8002` in dev) is used by the `client.ts` fetch wrapper to construct full URLs during development. In production, set it to empty or `/` so requests use relative paths through the nginx proxy.
+
+The browser never sees or sends the raw API key.
 
 ### 7.2 Error Handling
 
@@ -477,9 +486,9 @@ internal_error      → show generic error, log details
 For chat with `stream: true`:
 
 ```typescript
-// Auth is handled by the BFF proxy (nginx or Vite dev server) —
-// the browser never sees the raw API key.
-const response = await fetch(`/api/v1/conversations/${id}/messages`, {
+// All requests go through the BFF proxy (nginx in prod, Vite in dev).
+// The proxy injects the Authorization header; the browser never holds the key.
+const response = await fetch(`${getApiBaseUrl()}/api/v1/conversations/${id}/messages`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   credentials: 'same-origin',
