@@ -9,7 +9,7 @@ monitoring automated workflows across the MiMi cluster.
 ```bash
 npm install
 npm run dev    # port 5175
-npm run build  # requires VITE_MAESTRO_API_BASE_URL
+npm run build
 npm test
 npm run lint
 ```
@@ -18,7 +18,13 @@ npm run lint
 
 | Variable | Default (dev) | Description |
 |---|---|---|
-| `VITE_MAESTRO_API_BASE_URL` | `http://localhost:8002` | Maestro API base URL |
+| `VITE_MAESTRO_API_BASE_URL` | same origin | Optional public Maestro API base URL override. Leave unset for the Vite/nginx `/api/v1` proxy path. |
+| `MAESTRO_API_PROXY_TARGET` | `http://localhost:8002` | Server-only proxy target used by Vite dev proxy and the production nginx BFF. |
+| `MAESTRO_API_KEY` | none | Server-only bearer token injected by the proxy. Never expose this as a `VITE_*` value. |
+
+By default, browser requests use relative `/api/v1/*` URLs. In development,
+Vite proxies those requests to Maestro and injects `MAESTRO_API_KEY` when it is
+present. In production, nginx provides the same BFF-style proxy behavior.
 
 ## Design
 
