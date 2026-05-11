@@ -2,24 +2,26 @@ const DEV_DEFAULT_BASE = "http://localhost:8002";
 
 /**
  * Base URL for the Maestro HTTP API (no trailing slash).
+ * Empty string means "same origin", which lets nginx/Vite proxy /api/v1/*.
  */
 export function getApiBaseUrl(): string {
   const raw = import.meta.env.VITE_MAESTRO_API_BASE_URL;
-  if (typeof raw === "string" && raw.trim() !== "") {
-    return raw.replace(/\/$/, "");
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (trimmed === "" || trimmed === "/") return "";
+    return trimmed.replace(/\/$/, "");
   }
   if (import.meta.env.DEV) {
     return DEV_DEFAULT_BASE;
   }
-  throw new Error(
-    "Missing VITE_MAESTRO_API_BASE_URL. Set it when building for production."
-  );
+  return "";
 }
 
 export interface ApiErrorMeta {
   path?: string;
   method?: string;
   requestId?: string;
+  code?: string;
 }
 
 export class ApiError extends Error {
@@ -28,6 +30,7 @@ export class ApiError extends Error {
   readonly path?: string;
   readonly method?: string;
   readonly requestId?: string;
+  readonly code?: string;
 
   constructor(
     message: string,
@@ -42,6 +45,7 @@ export class ApiError extends Error {
     this.path = meta.path;
     this.method = meta.method;
     this.requestId = meta.requestId;
+    this.code = meta.code;
   }
 }
 
@@ -68,13 +72,39 @@ function isAbortError(err: unknown): boolean {
   );
 }
 
-function buildUrl(path: string): string {
+export function buildApiUrl(path: string): string {
   const base = getApiBaseUrl();
   const p = path.startsWith("/") ? path : `/${path}`;
   return `${base}${p}`;
 }
 
+function errorCodeFromBody(data: unknown): string | undefined {
+  if (
+    data &&
+    typeof data === "object" &&
+    "error" in data &&
+    typeof (data as { error: unknown }).error === "object" &&
+    (data as { error: unknown }).error !== null &&
+    "code" in ((data as { error: unknown }).error as Record<string, unknown>) &&
+    typeof ((data as { error: { code: unknown } }).error.code) === "string"
+  ) {
+    return (data as { error: { code: string } }).error.code;
+  }
+  return undefined;
+}
+
 function errorMessageFromBody(data: unknown, fallback: string): string {
+  if (
+    data &&
+    typeof data === "object" &&
+    "error" in data &&
+    typeof (data as { error: unknown }).error === "object" &&
+    (data as { error: unknown }).error !== null &&
+    "message" in ((data as { error: unknown }).error as Record<string, unknown>) &&
+    typeof ((data as { error: { message: unknown } }).error.message) === "string"
+  ) {
+    return (data as { error: { message: string } }).error.message;
+  }
   if (
     data &&
     typeof data === "object" &&
@@ -102,7 +132,7 @@ export async function fetchJson<T>(
 
   let res: Response;
   try {
-    res = await fetch(buildUrl(path), { ...init, headers });
+    res = await fetch(buildApiUrl(path), { ...init, headers });
   } catch (err) {
     if (isAbortError(err)) throw err;
     throw new NetworkError(
@@ -133,7 +163,7 @@ export async function fetchJson<T>(
       errorMessageFromBody(data, res.statusText),
       res.status,
       data,
-      { path, method, requestId }
+      { path, method, requestId, code: errorCodeFromBody(data) }
     );
   }
 

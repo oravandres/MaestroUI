@@ -1,9 +1,14 @@
+import { z } from "zod";
 import { fetchJson } from "@/api/client";
+import { parseApiResponse } from "@/api/parse";
 
-interface HealthResponse {
-  status: string;
-}
+const healthSchema = z.object({
+  status: z.string(),
+});
 
-export function fetchHealth(): Promise<HealthResponse> {
-  return fetchJson<HealthResponse>("/api/v1/health");
+export type HealthResponse = z.infer<typeof healthSchema>;
+
+export async function fetchHealth(): Promise<HealthResponse> {
+  const data = await fetchJson<unknown>("/api/v1/health");
+  return parseApiResponse(healthSchema, data, "health");
 }

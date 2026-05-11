@@ -7,15 +7,12 @@ import react from "@vitejs/plugin-react";
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig(({ command, mode }) => {
-  if (command === "build" && mode === "production") {
-    const env = loadEnv(mode, rootDir, "");
-    const base = env.VITE_MAESTRO_API_BASE_URL?.trim() ?? "";
-    if (base === "") {
-      throw new Error(
-        "VITE_MAESTRO_API_BASE_URL is required for production builds (set in .env.production or the environment)."
-      );
-    }
-  }
+  const env = loadEnv(mode, rootDir, "");
+  const maestroApiKey = env.MAESTRO_API_KEY?.trim();
+  const maestroTarget =
+    env.MAESTRO_API_PROXY_TARGET?.trim() || "http://localhost:8002";
+
+  void command;
 
   return {
     plugins: [react()],
@@ -27,6 +24,15 @@ export default defineConfig(({ command, mode }) => {
     server: {
       port: 5175,
       strictPort: true,
+      proxy: {
+        "/api/v1": {
+          target: maestroTarget,
+          changeOrigin: true,
+          headers: maestroApiKey
+            ? { Authorization: `Bearer ${maestroApiKey}` }
+            : undefined,
+        },
+      },
     },
     test: {
       environment: "jsdom",
