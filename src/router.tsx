@@ -1,16 +1,20 @@
 import { createBrowserRouter } from "react-router";
 import { Layout } from "@/components/Layout";
 import { ChatPage } from "@/pages/ChatPage";
+import { CodingPage } from "@/pages/CodingPage";
 import { ConversationPage } from "@/pages/ConversationPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { JobDetailPage } from "@/pages/JobDetailPage";
 import { JobsPage } from "@/pages/JobsPage";
 import { KnowledgePage } from "@/pages/KnowledgePage";
+import { MediaPage } from "@/pages/MediaPage";
 import { ModelDetailPage } from "@/pages/ModelDetailPage";
 import { ModelsPage } from "@/pages/ModelsPage";
-import { PlaceholderPage } from "@/pages/PlaceholderPage";
+import { MonitoringPage } from "@/pages/MonitoringPage";
 import { RagRunPage } from "@/pages/RagRunPage";
 import { RagStudioPage } from "@/pages/RagStudioPage";
+import { ReasoningPage } from "@/pages/ReasoningPage";
+import { SettingsPage } from "@/pages/SettingsPage";
 import { SystemDetailPage } from "@/pages/SystemDetailPage";
 import { SystemsPage } from "@/pages/SystemsPage";
 
@@ -27,30 +31,15 @@ export const router = createBrowserRouter([
       { path: "knowledge", element: <KnowledgePage /> },
       { path: "jobs", element: <JobsPage /> },
       { path: "jobs/:id", element: <JobDetailPage /> },
-      {
-        path: "coding",
-        element: <PlaceholderPage title="Coding Review" description="Coding tools arrive in PR 3." />,
-      },
-      {
-        path: "media",
-        element: <PlaceholderPage title="Media Studio" description="Media tools arrive in PR 3." />,
-      },
-      {
-        path: "reasoning",
-        element: <PlaceholderPage title="Reasoning" description="Reasoning tools arrive in PR 3." />,
-      },
+      { path: "coding", element: <CodingPage /> },
+      { path: "media", element: <MediaPage /> },
+      { path: "reasoning", element: <ReasoningPage /> },
       { path: "systems", element: <SystemsPage /> },
       { path: "systems/:id", element: <SystemDetailPage /> },
       { path: "models", element: <ModelsPage /> },
       { path: "models/:id", element: <ModelDetailPage /> },
-      {
-        path: "settings",
-        element: <PlaceholderPage title="Settings" description="Settings arrive in PR 3." />,
-      },
-      {
-        path: "monitoring",
-        element: <PlaceholderPage title="Monitoring" description="Monitoring arrives in PR 3." />,
-      },
+      { path: "settings", element: <SettingsPage /> },
+      { path: "monitoring", element: <MonitoringPage /> },
     ],
   },
 ]);

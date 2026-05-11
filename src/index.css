@@ -595,6 +595,14 @@ a {
   grid-column: span 2;
 }
 
+.field-full {
+  grid-column: 1 / -1;
+}
+
+.tool-form {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .compact-field {
   max-width: 260px;
 }
@@ -695,6 +703,105 @@ a {
   color: var(--color-error);
 }
 
+.success-text {
+  margin-top: 12px;
+  color: var(--color-success);
+  font-weight: 700;
+}
+
+.tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 18px;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  background: var(--surface-panel);
+}
+
+.tab {
+  min-height: 34px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: calc(var(--radius-md) - 2px);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.tab.active {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--text-primary);
+}
+
+.vertical-card {
+  display: grid;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.card-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.asset-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.asset-card,
+.result-panel {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.asset-card h3,
+.result-panel h3,
+.settings-group h3 {
+  margin: 0;
+}
+
+.settings-group {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.setting-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, auto);
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.setting-row code {
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+}
+
+.stat-value-text {
+  overflow-wrap: anywhere;
+  font-size: 1.05rem;
+}
+
 .text-muted {
   color: var(--text-muted);
 }
@@ -748,6 +855,10 @@ a {
   }
 
   .quick-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .asset-grid {
     grid-template-columns: 1fr;
   }
 }
