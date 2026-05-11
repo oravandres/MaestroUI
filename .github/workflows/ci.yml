@@ -99,7 +99,11 @@ jobs:
         run: |
           set -euo pipefail
 
-          docker run --rm -d --name logos-ui-smoke -p 18080:8080 logos-ui:ci-smoke
+          docker run --rm -d \
+            --name logos-ui-smoke \
+            -p 18080:8080 \
+            -e MAESTRO_API_KEY=ci-smoke-key \
+            logos-ui:ci-smoke
 
           # Wait for nginx to come up (worst case ~10s).
           for _ in 1 2 3 4 5 6 7 8 9 10; do

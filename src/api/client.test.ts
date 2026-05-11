@@ -13,11 +13,11 @@ describe("api client base URL", () => {
     expect(buildApiUrl("/api/v1/health")).toBe("/api/v1/health");
   });
 
-  it("uses the dev Maestro API when no explicit base URL is configured", () => {
+  it("uses same-origin relative paths when no explicit base URL is configured", () => {
     vi.stubEnv("VITE_MAESTRO_API_BASE_URL", undefined);
 
-    expect(getApiBaseUrl()).toBe("http://localhost:8002");
-    expect(buildApiUrl("api/v1/health")).toBe("http://localhost:8002/api/v1/health");
+    expect(getApiBaseUrl()).toBe("");
+    expect(buildApiUrl("api/v1/health")).toBe("/api/v1/health");
   });
 
   it("normalizes an explicit base URL before building paths", () => {

@@ -168,7 +168,7 @@ MaestroUI/
 │   ├── index.css              # Design system
 │   ├── main.tsx               # Entry point
 │   └── router.tsx             # Routes
-├── deploy/nginx.conf
+├── deploy/nginx.conf.template
 ├── Dockerfile
 ├── package.json
 └── vite.config.ts
@@ -575,7 +575,7 @@ Tasks:
 - [x] Recent events timeline on dashboard.
 - [x] Quick-action buttons.
 - [x] Configure Vite dev proxy for `/api/v1/*` → `localhost:8002` with auth header injection.
-- [ ] Update `client.ts` to support relative paths when `VITE_MAESTRO_API_BASE_URL` is unset (for production nginx BFF).
+- [x] Update `client.ts` to support relative paths when `VITE_MAESTRO_API_BASE_URL` is unset (for production nginx BFF).
 
 Acceptance criteria:
 
@@ -765,7 +765,7 @@ Acceptance criteria:
 ## 10. Kubernetes Deployment (MiMi repo)
 
 - **Dockerfile**: multi-stage build, `nginx-unprivileged` runtime.
-- **nginx.conf**: SPA fallback, gzip, cache hashed assets aggressively, never cache `index.html`.
+- **nginx.conf.template**: SPA fallback, `/api/v1` BFF proxy, cache hashed assets aggressively, never cache `index.html`.
 - **Deployment**: image pinned by digest, port 80.
 - **Service**: `ClusterIP`, name `maestro-ui`.
 - **Ingress**: `maestro.mimi.local`.
