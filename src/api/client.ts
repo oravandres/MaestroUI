@@ -180,6 +180,21 @@ export async function postJson<TResponse>(
   });
 }
 
+export async function patchJson<TResponse>(
+  path: string,
+  body: unknown,
+  init?: Omit<RequestInit, "body" | "method">
+): Promise<TResponse> {
+  const headers = new Headers(init?.headers);
+  headers.set("Content-Type", "application/json");
+  return fetchJson<TResponse>(path, {
+    ...init,
+    method: "PATCH",
+    headers,
+    body: JSON.stringify(body),
+  });
+}
+
 export async function postFormData<TResponse>(
   path: string,
   body: FormData,

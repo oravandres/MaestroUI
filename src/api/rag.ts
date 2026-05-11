@@ -45,6 +45,6 @@ export async function fetchRagRun(id: string): Promise<RagRun> {
 }
 
 export async function createRagRun(input: CreateRagRunInput): Promise<RagRun> {
-  const data = await postJson<unknown>("/api/v1/rag/runs", input);
+  const data = await postJson<unknown>("/api/v1/rag/agentic", input);
   return parseApiResponse(ragRunResponseSchema, data, "create rag run").run;
 }

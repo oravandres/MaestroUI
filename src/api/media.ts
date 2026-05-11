@@ -35,7 +35,7 @@ export interface GenerateMediaInput {
 }
 
 export interface UploadMediaInput {
-  type: "image" | "video" | "audio";
+  type: "audio";
   file: File;
 }
 
@@ -46,14 +46,21 @@ export async function fetchMediaAssets(type?: string): Promise<MediaAssetsRespon
 }
 
 export async function generateMedia(input: GenerateMediaInput): Promise<MediaJobResponse> {
-  const data = await postJson<unknown>("/api/v1/media/generations", input);
+  const path =
+    input.type === "audio"
+      ? "/api/v1/audio/tts"
+      : `/api/v1/media/${input.type}`;
+  const body =
+    input.type === "audio"
+      ? { text: input.prompt, model_id: input.model_id }
+      : { prompt: input.prompt, model_id: input.model_id };
+  const data = await postJson<unknown>(path, body);
   return parseApiResponse(mediaJobResponseSchema, data, "media generation");
 }
 
 export async function uploadMedia(input: UploadMediaInput): Promise<MediaJobResponse> {
   const body = new FormData();
-  body.set("type", input.type);
   body.set("file", input.file);
-  const data = await postFormData<unknown>("/api/v1/media/uploads", body);
+  const data = await postFormData<unknown>("/api/v1/audio/asr", body);
   return parseApiResponse(mediaJobResponseSchema, data, "media upload");
 }

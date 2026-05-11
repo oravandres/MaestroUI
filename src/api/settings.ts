@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { fetchJson, putJson } from "@/api/client";
+import { fetchJson, patchJson } from "@/api/client";
 import { parseApiResponse } from "@/api/parse";
 
 export const settingSchema = z.object({
@@ -14,6 +14,8 @@ const settingsResponseSchema = z.object({
 const settingResponseSchema = z.object({
   setting: settingSchema,
 });
+
+const saveSettingResponseSchema = z.union([settingResponseSchema, settingsResponseSchema]);
 
 export type Setting = z.infer<typeof settingSchema>;
 export type SettingsResponse = z.infer<typeof settingsResponseSchema>;
@@ -34,8 +36,12 @@ export async function fetchSettings(): Promise<SettingsResponse> {
 }
 
 export async function saveSetting(key: string, value: unknown): Promise<Setting> {
-  const data = await putJson<unknown>(`/api/v1/settings/${encodeURIComponent(key)}`, {
-    value,
+  const data = await patchJson<unknown>("/api/v1/settings", {
+    settings: { [key]: value },
   });
-  return parseApiResponse(settingResponseSchema, data, "setting").setting;
+  const parsed = parseApiResponse(saveSettingResponseSchema, data, "setting");
+  if ("setting" in parsed) return parsed.setting;
+  const updated = parsed.items.find((setting) => setting.key === key);
+  if (updated) return updated;
+  throw new Error("Settings response did not include the updated setting.");
 }

@@ -34,6 +34,6 @@ export interface SubmitCodeReviewInput {
 export async function submitCodeReview(
   input: SubmitCodeReviewInput
 ): Promise<CodeReviewResponse> {
-  const data = await postJson<unknown>("/api/v1/coding/reviews", input);
+  const data = await postJson<unknown>("/api/v1/coding/review", input);
   return parseApiResponse(codeReviewResponseSchema, data, "code review");
 }

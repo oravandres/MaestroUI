@@ -21,7 +21,10 @@ const emptyPrompts: Record<MediaType, string> = {
 
 function supportsMediaType(capability: string, type: MediaType): boolean {
   const normalized = capability.toLowerCase();
-  return normalized === "media" || normalized === `media.${type}`;
+  if (normalized === "media" || normalized === type || normalized === `media.${type}`) {
+    return true;
+  }
+  return type === "audio" && (normalized === "audio.tts" || normalized === "audio.asr");
 }
 
 export function MediaPage() {
@@ -113,8 +116,8 @@ export function MediaPage() {
 
   function submitUpload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!file) return;
-    uploadMutation.mutate({ type: activeType, file });
+    if (activeType !== "audio" || !file) return;
+    uploadMutation.mutate({ type: "audio", file });
   }
 
   return (
@@ -154,7 +157,7 @@ export function MediaPage() {
               </select>
             </label>
             <label className="field field-wide">
-              <span>Prompt</span>
+              <span>{activeType === "audio" ? "Text" : "Prompt"}</span>
               <textarea rows={4} value={prompt} onChange={(event) => updatePrompt(event.target.value)} />
             </label>
             <button
@@ -177,28 +180,35 @@ export function MediaPage() {
         </section>
 
         <section className="panel">
-          <h2>Upload {activeType}</h2>
-          <form className="form-grid tool-form" onSubmit={submitUpload}>
-            <label className="field field-wide">
-              <span>File</span>
-              <input
-                ref={fileInputRef}
-                type="file"
-                onChange={(event) => updateFile(event.target.files?.[0] ?? null)}
-              />
-            </label>
-            <button
-              className="button button-secondary"
-              type="submit"
-              disabled={!file || uploadMutation.isPending}
-            >
-              <Upload aria-hidden="true" size={16} />
-              Upload
-            </button>
-          </form>
-          {uploadMutation.isError ? (
-            <ErrorState error={uploadMutation.error} title="Upload failed" />
-          ) : null}
+          {activeType === "audio" ? (
+            <>
+              <h2>Transcribe audio</h2>
+              <form className="form-grid tool-form" onSubmit={submitUpload}>
+                <label className="field field-wide">
+                  <span>File</span>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="audio/*"
+                    onChange={(event) => updateFile(event.target.files?.[0] ?? null)}
+                  />
+                </label>
+                <button
+                  className="button button-secondary"
+                  type="submit"
+                  disabled={!file || uploadMutation.isPending}
+                >
+                  <Upload aria-hidden="true" size={16} />
+                  Transcribe
+                </button>
+              </form>
+              {uploadMutation.isError ? (
+                <ErrorState error={uploadMutation.error} title="Transcription failed" />
+              ) : null}
+            </>
+          ) : (
+            <h2>Available {activeType} models</h2>
+          )}
           <div className="tag-list">
             {mediaModels.length === 0 ? <span className="tag">No media models available</span> : null}
             {mediaModels.map((model) => (
