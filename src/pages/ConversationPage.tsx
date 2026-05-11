@@ -73,8 +73,10 @@ export function ConversationPage() {
         setSendError(error);
       }
     } finally {
-      if (abortRef.current === controller) abortRef.current = null;
-      setIsSending(false);
+      if (abortRef.current === controller) {
+        abortRef.current = null;
+        setIsSending(false);
+      }
     }
   }
 
