@@ -12,10 +12,7 @@ export const jsonObjectSchema: z.ZodType<
   z.record(z.unknown())
 );
 
-export const jsonArraySchema: z.ZodType<unknown[], z.ZodTypeDef, unknown> = z.preprocess(
-  (value) => (Array.isArray(value) ? value : []),
-  z.array(z.unknown())
-);
+export const jsonArraySchema = z.array(z.unknown());
 
 export const paginationSchema: z.ZodType<
   { total: number },
