@@ -106,8 +106,21 @@ describe("PR3 tool pages", () => {
           created_at: "2026-05-11T08:00:00Z",
           updated_at: "2026-05-11T08:00:00Z",
         },
+        {
+          id: "mimi-asr",
+          system_id: "mimi",
+          name: "MiMi ASR",
+          capability: "audio.asr",
+          quality_tier: "standard",
+          status: "online",
+          residency_state: "warm",
+          context_window: null,
+          metadata: {},
+          created_at: "2026-05-11T08:00:00Z",
+          updated_at: "2026-05-11T08:00:00Z",
+        },
       ],
-      pagination: { total: 3 },
+      pagination: { total: 4 },
     });
     vi.mocked(analyzeReasoning).mockRejectedValue(
       new ApiError("not found", 404, { error: { message: "not found" } })
@@ -166,6 +179,20 @@ describe("PR3 tool pages", () => {
     await user.click(screen.getByRole("button", { name: /generate/i }));
 
     expect(await screen.findByText("Generation failed")).toBeInTheDocument();
+  });
+
+  it("keeps ASR-only models out of the audio generation selector", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<MediaPage />, { route: "/media" });
+
+    await screen.findByText("No media assets");
+    await user.click(screen.getByRole("button", { name: "audio" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: "MiMi Audio" })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("option", { name: "MiMi ASR" })).not.toBeInTheDocument();
+    expect(screen.getByText("MiMi ASR")).toBeInTheDocument();
   });
 
   it("keeps media generation and upload cleanup scoped to the submitted media type", async () => {

@@ -19,12 +19,22 @@ const emptyPrompts: Record<MediaType, string> = {
   audio: "",
 };
 
-function supportsMediaType(capability: string, type: MediaType): boolean {
+function supportsMediaGeneration(capability: string, type: MediaType): boolean {
   const normalized = capability.toLowerCase();
   if (normalized === "media" || normalized === type || normalized === `media.${type}`) {
     return true;
   }
-  return type === "audio" && (normalized === "audio.tts" || normalized === "audio.asr");
+  return type === "audio" && normalized === "audio.tts";
+}
+
+function supportsAudioTranscription(capability: string): boolean {
+  const normalized = capability.toLowerCase();
+  return (
+    normalized === "media" ||
+    normalized === "audio" ||
+    normalized === "media.audio" ||
+    normalized === "audio.asr"
+  );
 }
 
 export function MediaPage() {
@@ -69,8 +79,14 @@ export function MediaPage() {
     },
   });
 
-  const mediaModels =
-    modelsQuery.data?.items.filter((model) => supportsMediaType(model.capability, activeType)) ?? [];
+  const generationModels =
+    modelsQuery.data?.items.filter((model) =>
+      supportsMediaGeneration(model.capability, activeType)
+    ) ?? [];
+  const transcriptionModels =
+    modelsQuery.data?.items.filter((model) => supportsAudioTranscription(model.capability)) ??
+    [];
+  const supportingModels = activeType === "audio" ? transcriptionModels : generationModels;
 
   useEffect(() => {
     activeTypeRef.current = activeType;
@@ -82,7 +98,7 @@ export function MediaPage() {
   useEffect(() => {
     if (modelId === "") return;
     const selected = modelsQuery.data?.items.find((model) => model.id === modelId);
-    if (selected && !supportsMediaType(selected.capability, activeType)) {
+    if (selected && !supportsMediaGeneration(selected.capability, activeType)) {
       setModelId("");
     }
   }, [activeType, modelId, modelsQuery.data?.items]);
@@ -149,7 +165,7 @@ export function MediaPage() {
               <span>Model</span>
               <select value={modelId} onChange={(event) => setModelId(event.target.value)}>
                 <option value="">Auto select</option>
-                {mediaModels.map((model) => (
+                {generationModels.map((model) => (
                   <option key={model.id} value={model.id}>
                     {model.name}
                   </option>
@@ -210,8 +226,8 @@ export function MediaPage() {
             <h2>Available {activeType} models</h2>
           )}
           <div className="tag-list">
-            {mediaModels.length === 0 ? <span className="tag">No media models available</span> : null}
-            {mediaModels.map((model) => (
+            {supportingModels.length === 0 ? <span className="tag">No media models available</span> : null}
+            {supportingModels.map((model) => (
               <span className="tag" key={model.id}>
                 {model.name}
               </span>
