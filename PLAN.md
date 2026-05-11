@@ -5,7 +5,8 @@
 > **Backend:** Maestro (Go orchestrator on MiMi K3s)
 > **Compute:** Darkbase RTX 5090 (fast) + Sparky DGX Spark (premium)
 > **Priority:** Main features first. Build a usable vertical slice before advanced polish.
-> **Status:** Phase 1 done. Ready for Phase 2+.
+> **Status:** Foundation and thin vertical UI slices are merged. Next focus:
+> runtime proxy/BFF hardening, API contract alignment, then deeper workflows.
 
 ---
 
@@ -50,7 +51,7 @@ MaestroUI talks only to the Maestro backend API. It never calls Sparky or Darkba
 | Styling | Vanilla CSS | Full control |
 | Typography | Inter (Google Fonts) | Clean, modern |
 | Icons | Lucide React | Consistent, lightweight |
-| Runtime | nginx-unprivileged | Static SPA serving |
+| Runtime | nginx-unprivileged | Static SPA serving plus `/api/v1` BFF proxy |
 
 ---
 
@@ -68,17 +69,20 @@ MaestroUI talks only to the Maestro backend API. It never calls Sparky or Darkba
 
 ## 4. Project Structure
 
+This is the current core structure plus planned feature extraction points.
+Most feature workflows currently live in page components; split them into
+feature components as those workflows deepen.
+
 ```
 MaestroUI/
 ├── src/
 │   ├── api/
 │   │   ├── client.ts          # Fetch wrapper, BFF-aware base URL
-│   │   ├── query-client.ts    # TanStack Query config
+│   │   ├── queryClient.ts     # TanStack Query config
+│   │   ├── dashboard.ts       # Dashboard summary hooks
 │   │   ├── health.ts          # Health check hooks
 │   │   ├── systems.ts         # Systems API hooks
-│   │   ├── models.ts          # Models API hooks
-│   │   ├── conversations.ts   # Chat/conversation API hooks
-│   │   ├── streaming.ts       # SSE streaming client for chat
+│   │   ├── chat.ts            # Chat/conversation API hooks and SSE client
 │   │   ├── jobs.ts            # Jobs API hooks
 │   │   ├── knowledge.ts       # Knowledge/document API hooks
 │   │   ├── rag.ts             # RAG API hooks
@@ -87,7 +91,8 @@ MaestroUI/
 │   │   ├── media.ts           # Media/audio API hooks
 │   │   ├── monitoring.ts      # Dashboard/monitoring API hooks
 │   │   ├── settings.ts        # Settings API hooks
-│   │   └── types.ts           # Shared API types
+│   │   ├── parse.ts           # Shared Zod parsing helpers
+│   │   └── logger.ts          # API error logging helpers
 │   ├── components/
 │   │   ├── layout/
 │   │   │   ├── Sidebar.tsx
@@ -175,7 +180,12 @@ MaestroUI/
 
 | Variable | Default (dev) | Description |
 |----------|---------------|-------------|
-| `VITE_MAESTRO_API_BASE_URL` | `http://localhost:8002` | Maestro API base URL |
+| `VITE_MAESTRO_API_BASE_URL` | same origin | Optional public Maestro API base URL override. Leave unset for the proxy/BFF path. |
+| `MAESTRO_API_PROXY_TARGET` | `http://localhost:8002` | Server-only target used by Vite dev proxy and production nginx BFF. |
+| `MAESTRO_API_KEY` | none | Server-only bearer token injected by the proxy. Never expose as `VITE_*`. |
+
+Browser code should prefer relative `/api/v1/*` requests so the dev server or
+production BFF can inject credentials without exposing secrets in the bundle.
 
 ---
 
@@ -460,18 +470,23 @@ Production (nginx BFF):
   Browser  ─── /api/v1/* ───►  nginx  ─── Authorization: Bearer <key> ───►  Maestro :8002
   Browser  ─── /* ──────────►  nginx  ─── static SPA files
 
-Development (direct + future Vite proxy):
-  Current:   client.ts fetches http://localhost:8002 directly (no auth injection yet)
-  Target:    Vite dev server proxies /api/v1/* to localhost:8002, injecting the header
+Development (Vite proxy):
+  Browser  ─── /api/v1/* ───►  Vite  ─── Authorization: Bearer <key> ───►  Maestro :8002
 ```
 
-**Current state:** The existing `client.ts` uses `VITE_MAESTRO_API_BASE_URL` (defaults to `http://localhost:8002` in dev) to construct absolute URLs and calls Maestro directly. This works today because the backend does not yet enforce API key auth. The code throws if this variable is empty in production.
+**Current state:** `vite.config.ts` already includes a development proxy for
+`/api/v1/*` and injects `MAESTRO_API_KEY` when present. The remaining hardening
+work is to make same-origin proxying the default in `client.ts`, remove the
+production build's baked-in public API URL, and add the production nginx BFF
+proxy for `/api/v1/*`.
 
-**Target state:** Once API key auth is enforced (Maestro Phase 1 remaining work):
-1. **Development**: Configure `vite.config.ts` with a proxy rule that forwards `/api/v1/*` to `http://localhost:8002` and injects the `Authorization` header from a local `.env` file. Update `client.ts` to use relative paths when `VITE_MAESTRO_API_BASE_URL` is unset.
-2. **Production**: nginx serves the SPA and proxies `/api/v1/*` to Maestro, injecting the header. `VITE_MAESTRO_API_BASE_URL` is not set (relative paths).
-
-This transition is tracked as a Phase 2 task (Navigation & Layout) since it requires coordinating with the Maestro auth middleware rollout.
+**Target state:**
+1. **Development**: `/api/v1/*` goes through Vite's proxy by default.
+   `VITE_MAESTRO_API_BASE_URL` is only an explicit escape hatch for direct API
+   calls.
+2. **Production**: nginx serves the SPA and proxies `/api/v1/*` to Maestro,
+   injecting the bearer token from server-only runtime env. `index.html` stays
+   uncached and hashed static assets stay immutable.
 
 The browser never sees or sends the raw API key.
 
@@ -528,71 +543,77 @@ Every async view must explicitly model:
 
 ## 8. Implementation Order
 
+Current merged baseline: the app shell, navigation, dashboard, systems/models,
+chat, jobs, knowledge, RAG, coding, media, reasoning, settings, and monitoring
+routes all have thin vertical UI slices. The Maestro backend currently exposes
+health, systems, and models endpoints; the other page APIs must continue to
+handle unavailable endpoints gracefully until those backend phases ship.
+
 | Phase | Scope | Status |
 |-------|-------|--------|
 | ~~Phase 1~~ | Project skeleton: design system, layout shell, health check | ✅ Done |
-| Phase 2 | Navigation, layout, and Dashboard page | Planned |
-| Phase 3 | Systems & Models pages | Planned |
-| Phase 4 | Chat with streaming | Planned |
-| Phase 5 | Jobs & Queue | Planned |
-| Phase 6 | Knowledge Management | Planned |
-| Phase 7 | RAG Studio | Planned |
-| Phase 8 | Coding Review | Planned |
-| Phase 9 | Media Studio (images, video, audio) | Planned |
-| Phase 10 | Reasoning tools (analyze, compare) | Planned |
-| Phase 11 | Settings & Monitoring | Planned |
+| ~~Phase 2~~ | Navigation, layout, and Dashboard page | ✅ Thin slice done; proxy/BFF hardening remains |
+| ~~Phase 3~~ | Systems & Models pages | ✅ Done |
+| Phase 4 | Chat with streaming | Thin slice done; contract alignment and deeper UX planned |
+| Phase 5 | Jobs & Queue | Thin slice done; queue/workers/cancel flows planned |
+| Phase 6 | Knowledge Management | Thin slice done; source management and indexing planned |
+| Phase 7 | RAG Studio | Thin slice done; citations/verification detail planned |
+| Phase 8 | Coding Review | Thin slice done; review variants planned |
+| Phase 9 | Media Studio (images, video, audio) | Thin slice done; backend contract alignment planned |
+| Phase 10 | Reasoning tools (analyze, compare) | Thin slice done; scoring detail planned |
+| Phase 11 | Settings & Monitoring | Thin slice done; validation/audit/metrics detail planned |
 
 ### Phase 2 — Navigation, Layout, Dashboard
 
 Tasks:
 
-- [ ] Sidebar navigation with icons and active state.
-- [ ] Header with platform name and connection status.
-- [ ] Mobile-responsive navigation.
-- [ ] Dashboard page with system health cards.
-- [ ] Dashboard summary stats (conversations, jobs, models).
-- [ ] Recent events timeline on dashboard.
-- [ ] Quick-action buttons.
-- [ ] Configure Vite dev proxy for `/api/v1/*` → `localhost:8002` with auth header injection (coordinate with Maestro API key auth rollout).
+- [x] Sidebar navigation with icons and active state.
+- [x] Header with platform name and connection status.
+- [x] Mobile-responsive navigation.
+- [x] Dashboard page with system health cards.
+- [x] Dashboard summary stats (conversations, jobs, models).
+- [x] Recent events timeline on dashboard.
+- [x] Quick-action buttons.
+- [x] Configure Vite dev proxy for `/api/v1/*` → `localhost:8002` with auth header injection.
 - [ ] Update `client.ts` to support relative paths when `VITE_MAESTRO_API_BASE_URL` is unset (for production nginx BFF).
 
 Acceptance criteria:
 
-- [ ] All navigation links work.
+- [x] All navigation links work.
 - [ ] Dashboard shows real data from Maestro API.
-- [ ] Layout is responsive.
+- [x] Layout is responsive.
 
 ### Phase 3 — Systems & Models
 
 Tasks:
 
-- [ ] Systems list page with health cards.
-- [ ] System detail view with capabilities.
-- [ ] Models list with residency state badges (hot/cold/loading/evicting).
-- [ ] Model detail view.
-- [ ] Refresh button to re-poll health.
-- [ ] Auto-polling system status.
+- [x] Systems list page with health cards.
+- [x] System detail view with capabilities.
+- [x] Models list with residency state badges (hot/cold/loading/evicting).
+- [x] Model detail view.
+- [x] Refresh button to re-poll health.
+- [x] Auto-polling system status.
 
 Acceptance criteria:
 
-- [ ] MiMi, Darkbase, Sparky displayed with correct status.
-- [ ] Model residency state updates in real-time.
-- [ ] Offline provider shows degraded state.
+- [x] MiMi, Darkbase, Sparky displayed with correct status.
+- [x] Model residency state updates in real-time.
+- [x] Offline provider shows degraded state.
 
 ### Phase 4 — Chat with Streaming
 
 Tasks:
 
 - [ ] Conversation list with search.
-- [ ] Create new conversation.
-- [ ] Message thread display.
-- [ ] Chat input with mode selector.
-- [ ] SSE streaming implementation (token-by-token display).
-- [ ] Streaming message component with typing indicator.
+- [x] Create new conversation.
+- [x] Message thread display.
+- [x] Chat input with mode selector.
+- [x] SSE streaming implementation (token-by-token display).
+- [x] Streaming message component with typing indicator.
 - [ ] Source citations for RAG-mode responses.
-- [ ] Message metadata display (model, latency, tokens).
+- [x] Message metadata display (model, latency, tokens).
 - [ ] Delete conversation.
-- [ ] Cancel in-flight streams on navigation.
+- [x] Cancel in-flight streams on navigation.
 
 Acceptance criteria:
 
@@ -606,11 +627,11 @@ Acceptance criteria:
 
 Tasks:
 
-- [ ] Job list with status/type filters.
-- [ ] Job detail with event timeline.
-- [ ] Job progress display.
+- [x] Job list with status filter.
+- [x] Job detail with event timeline.
+- [x] Job progress display.
 - [ ] Cancel job action.
-- [ ] Queue overview summary.
+- [x] Queue overview summary.
 - [ ] Worker status cards.
 - [ ] Polling for running job status.
 
@@ -624,9 +645,10 @@ Acceptance criteria:
 
 Tasks:
 
-- [ ] Source list with create/edit.
-- [ ] Document list per source.
-- [ ] File upload dialog (drag-and-drop, multipart).
+- [ ] Source create/edit.
+- [x] Source list.
+- [x] Document list.
+- [x] File upload form (multipart).
 - [ ] Indexing trigger and progress display.
 - [ ] Document chunk/vector status.
 
@@ -640,11 +662,11 @@ Acceptance criteria:
 
 Tasks:
 
-- [ ] RAG run list with status and confidence.
+- [x] RAG run list with status and confidence.
 - [ ] Run detail: question, retrieval plan, rounds, evidence, answer, citations.
 - [ ] Verification results display (supported, unsupported, contradictions).
 - [ ] Confidence badge component.
-- [ ] Trigger new agentic RAG run from UI.
+- [x] Trigger new agentic RAG run from UI.
 
 Acceptance criteria:
 
@@ -656,10 +678,10 @@ Acceptance criteria:
 
 Tasks:
 
-- [ ] Review submission form (task type, repo, language, code/diff, instructions).
-- [ ] Structured findings display with severity badges.
+- [x] Review submission form (repo, language, code/diff, instructions).
+- [x] Structured findings display with severity badges.
 - [ ] Architecture notes and test suggestions.
-- [ ] Final recommendation badge.
+- [x] Final recommendation badge.
 
 Acceptance criteria:
 
@@ -671,13 +693,12 @@ Acceptance criteria:
 
 Tasks:
 
-- [ ] Image generation form with model/prompt/dimensions.
-- [ ] Video generation form with model/prompt/duration.
-- [ ] TTS form with model/text/voice/style.
-- [ ] ASR form with audio upload.
+- [x] Image/video generation form with model/prompt/dimensions.
+- [ ] Dedicated TTS form with model/text/voice/style.
+- [ ] Dedicated ASR form with audio upload.
 - [ ] Asset gallery with thumbnails.
 - [ ] Job status inline while generating.
-- [ ] Model availability indicator (hot/cold from Sparky).
+- [x] Model availability indicator (hot/cold from Sparky).
 
 Acceptance criteria:
 
@@ -689,11 +710,11 @@ Acceptance criteria:
 
 Tasks:
 
-- [ ] Analyze form with task, context, criteria, output style.
-- [ ] Analyze results: summary, key points, risks, recommendation.
-- [ ] Compare form with options, criteria, weights, constraints.
+- [x] Analyze form with task, context, criteria, output style.
+- [x] Analyze results: summary, key points, risks, recommendation.
+- [x] Compare form with options, criteria, weights, constraints.
 - [ ] Compare results: score matrix, totals, recommendation.
-- [ ] Confidence display on both.
+- [x] Confidence display on both.
 
 Acceptance criteria:
 
@@ -704,12 +725,12 @@ Acceptance criteria:
 
 Tasks:
 
-- [ ] Settings page with grouped configuration.
-- [ ] Secret masking (never display unmasked).
+- [x] Settings page with grouped configuration.
+- [x] Secret masking (never display unmasked).
 - [ ] Settings update with validation.
-- [ ] Monitoring overview page.
-- [ ] Event log with level filtering.
-- [ ] Alert display.
+- [x] Monitoring overview page.
+- [x] Event log with level filtering.
+- [x] Alert display.
 
 Acceptance criteria:
 
