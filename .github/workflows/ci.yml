@@ -99,7 +99,35 @@ jobs:
         run: |
           set -euo pipefail
 
-          docker run --rm -d --name logos-ui-smoke -p 18080:8080 logos-ui:ci-smoke
+          cat > /tmp/maestro-upstream.py <<'PY'
+          from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+          from pathlib import Path
+
+          class Handler(BaseHTTPRequestHandler):
+              def do_GET(self):
+                  Path("/tmp/maestro-upstream.log").write_text(
+                      f"{self.path}\n{self.headers.get('Authorization', '')}\n",
+                      encoding="utf-8",
+                  )
+                  self.send_response(204)
+                  self.end_headers()
+
+              def log_message(self, _format, *args):
+                  return
+
+          ThreadingHTTPServer(("0.0.0.0", 18081), Handler).serve_forever()
+          PY
+          python3 /tmp/maestro-upstream.py &
+          UPSTREAM_PID=$!
+          trap 'docker rm -f logos-ui-smoke >/dev/null 2>&1 || true; kill "$UPSTREAM_PID" >/dev/null 2>&1 || true' EXIT
+
+          docker run --rm -d \
+            --name logos-ui-smoke \
+            --add-host=host.docker.internal:host-gateway \
+            -p 18080:8080 \
+            -e MAESTRO_API_PROXY_TARGET=http://host.docker.internal:18081 \
+            -e MAESTRO_API_KEY=ci-smoke-key \
+            logos-ui:ci-smoke
 
           # Wait for nginx to come up (worst case ~10s).
           for _ in 1 2 3 4 5 6 7 8 9 10; do
@@ -133,6 +161,12 @@ jobs:
 
           echo "--- asset 404 does NOT fall through to index.html ---"
           curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:18080/assets/missing.js | grep -qE '^404$'
+
+          echo "--- API proxy preserves path and injects bearer token ---"
+          rm -f /tmp/maestro-upstream.log
+          curl -fsS -o /dev/null http://127.0.0.1:18080/api/v1/health
+          test "$(sed -n '1p' /tmp/maestro-upstream.log)" = "/api/v1/health"
+          test "$(sed -n '2p' /tmp/maestro-upstream.log)" = "Bearer ci-smoke-key"
 
           docker rm -f logos-ui-smoke
 

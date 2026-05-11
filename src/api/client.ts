@@ -1,5 +1,3 @@
-const DEV_DEFAULT_BASE = "http://localhost:8002";
-
 /**
  * Base URL for the Maestro HTTP API (no trailing slash).
  * Empty string means "same origin", which lets nginx/Vite proxy /api/v1/*.
@@ -10,9 +8,6 @@ export function getApiBaseUrl(): string {
     const trimmed = raw.trim();
     if (trimmed === "" || trimmed === "/") return "";
     return trimmed.replace(/\/$/, "");
-  }
-  if (import.meta.env.DEV) {
-    return DEV_DEFAULT_BASE;
   }
   return "";
 }
