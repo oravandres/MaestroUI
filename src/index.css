@@ -553,6 +553,148 @@ a {
   font-size: 0.82rem;
 }
 
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  gap: 14px;
+  align-items: end;
+}
+
+.field {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.field span {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 11px;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.field-wide {
+  grid-column: span 2;
+}
+
+.compact-field {
+  max-width: 260px;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.message-thread {
+  display: grid;
+  gap: 14px;
+}
+
+.message-bubble {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.message-bubble.assistant {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.message-bubble.user {
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.message-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+}
+
+.message-heading strong {
+  color: var(--text-primary);
+  text-transform: capitalize;
+}
+
+.message-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chat-composer {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: end;
+}
+
+.json-preview {
+  max-height: 340px;
+  overflow: auto;
+  padding: 12px;
+  margin: 10px 0 0;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--text-secondary);
+  font-size: 0.83rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.progress-shell {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 150px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.progress-track {
+  flex: 1;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent-gradient);
+}
+
+.error-text {
+  margin-top: 12px;
+  color: var(--color-error);
+}
+
 .text-muted {
   color: var(--text-muted);
 }
@@ -593,9 +735,16 @@ a {
   }
 
   .page-header-row,
-  .panel-header {
+  .panel-header,
+  .form-grid,
+  .chat-composer {
     align-items: stretch;
+    grid-template-columns: 1fr;
     flex-direction: column;
+  }
+
+  .field-wide {
+    grid-column: auto;
   }
 
   .quick-actions {
