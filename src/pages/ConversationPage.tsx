@@ -207,23 +207,186 @@ function MessageBubble({ message }: { message: Message }) {
         <span>{formatDateTime(message.created_at)}</span>
       </div>
       <p>{message.content}</p>
-      <div className="message-meta">
-        {message.model_id ? <StatusBadge status={message.model_id} /> : null}
-        {message.system_id ? <StatusBadge status={message.system_id} /> : null}
-        {message.mode ? <StatusBadge status={message.mode} /> : null}
-      </div>
       {message.sources.length > 0 ? (
-        <details>
-          <summary>Sources ({message.sources.length})</summary>
-          <JsonPreview value={message.sources} label="Message sources" />
-        </details>
+        <SourceCitations sources={message.sources} />
       ) : null}
-      {Object.keys(message.usage).length > 0 || Object.keys(message.metadata).length > 0 ? (
+      <MessageMetadata message={message} />
+    </article>
+  );
+}
+
+function SourceCitations({ sources }: { sources: unknown[] }) {
+  return (
+    <details>
+      <summary>Citations ({sources.length})</summary>
+      <ol className="citation-list">
+        {sources.map((source, index) => (
+          <li key={index}>
+            <SourceCitation source={source} index={index} />
+          </li>
+        ))}
+      </ol>
+    </details>
+  );
+}
+
+function SourceCitation({ source, index }: { source: unknown; index: number }) {
+  if (!isRecord(source)) {
+    return <RawCitation source={source} index={index} />;
+  }
+
+  const title = readString(source, "title") ?? `Source ${index + 1}`;
+  const uri = readString(source, "uri");
+  const documentId = readString(source, "document_id");
+  const chunkId = readString(source, "chunk_id");
+  const score = readNumber(source, "score");
+  const text = readString(source, "text");
+  const href = uri ? safeHref(uri) : undefined;
+  const additionalMetadata = additionalCitationMetadata(source);
+
+  if (!uri && !documentId && !chunkId && score === undefined && !text && title === `Source ${index + 1}`) {
+    return <RawCitation source={source} index={index} />;
+  }
+
+  return (
+    <article className="citation-card">
+      <div className="card-title-row">
+        <h3>
+          {href ? (
+            <a href={href} target="_blank" rel="noreferrer">
+              {title}
+            </a>
+          ) : (
+            title
+          )}
+        </h3>
+        {score !== undefined ? <StatusBadge status="ok">Score {formatScore(score)}</StatusBadge> : null}
+      </div>
+      <div className="tag-list">
+        {documentId ? <span className="tag">Document {documentId}</span> : null}
+        {chunkId ? <span className="tag">Chunk {chunkId}</span> : null}
+        {uri && !href ? <span className="tag">{uri}</span> : null}
+      </div>
+      {text ? <p>{text}</p> : null}
+      {Object.keys(additionalMetadata).length > 0 ? (
         <details>
-          <summary>Metadata</summary>
-          <JsonPreview value={{ usage: message.usage, metadata: message.metadata }} />
+          <summary>Additional source metadata</summary>
+          <JsonPreview
+            value={additionalMetadata}
+            label={`Source ${index + 1} additional metadata`}
+          />
         </details>
       ) : null}
     </article>
+  );
+}
+
+function RawCitation({ source, index }: { source: unknown; index: number }) {
+  return (
+    <details className="citation-card">
+      <summary>Source {index + 1} raw payload</summary>
+      <JsonPreview value={source} label={`Source ${index + 1} raw payload`} />
+    </details>
+  );
+}
+
+function MessageMetadata({ message }: { message: Message }) {
+  const usageEntries = primitiveEntries(message.usage);
+  const metadataEntries = primitiveEntries(message.metadata);
+  const complexMetadata = Object.fromEntries(
+    Object.entries(message.metadata).filter(([, value]) => !isPrimitiveDisplayValue(value))
+  );
+  const hasDetails =
+    usageEntries.length > 0 ||
+    metadataEntries.length > 0 ||
+    Object.keys(complexMetadata).length > 0;
+
+  return (
+    <div className="message-meta">
+      {message.model_id ? <StatusBadge status={message.model_id} /> : null}
+      {message.system_id ? <StatusBadge status={message.system_id} /> : null}
+      {message.mode ? <StatusBadge status={message.mode} /> : null}
+      {hasDetails ? (
+        <details className="message-metadata-details">
+          <summary>Metadata</summary>
+          {usageEntries.length > 0 ? <MetadataList title="Usage" entries={usageEntries} /> : null}
+          {metadataEntries.length > 0 ? <MetadataList title="Details" entries={metadataEntries} /> : null}
+          {Object.keys(complexMetadata).length > 0 ? (
+            <JsonPreview value={complexMetadata} label="Complex message metadata" />
+          ) : null}
+        </details>
+      ) : null}
+    </div>
+  );
+}
+
+function MetadataList({
+  title,
+  entries,
+}: {
+  title: string;
+  entries: Array<[string, string]>;
+}) {
+  return (
+    <section>
+      <h3>{title}</h3>
+      <dl className="metadata-list">
+        {entries.map(([key, value]) => (
+          <div key={key}>
+            <dt>{key}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function readString(source: Record<string, unknown>, key: string): string | undefined {
+  const value = source[key];
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed === "" ? undefined : trimmed;
+}
+
+function readNumber(source: Record<string, unknown>, key: string): number | undefined {
+  const value = source[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function additionalCitationMetadata(source: Record<string, unknown>): Record<string, unknown> {
+  const displayedKeys = new Set(["title", "uri", "document_id", "chunk_id", "score", "text"]);
+  return Object.fromEntries(Object.entries(source).filter(([key]) => !displayedKeys.has(key)));
+}
+
+function safeHref(uri: string): string | undefined {
+  if (uri.startsWith("/") || uri.startsWith("#")) return uri;
+  try {
+    const parsed = new URL(uri);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? uri : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function formatScore(score: number): string {
+  return score.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function primitiveEntries(value: Record<string, unknown>): Array<[string, string]> {
+  return Object.entries(value)
+    .filter(([, entryValue]) => isPrimitiveDisplayValue(entryValue))
+    .map(([key, entryValue]) => [key, String(entryValue)]);
+}
+
+function isPrimitiveDisplayValue(value: unknown): value is string | number | boolean {
+  return (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
   );
 }

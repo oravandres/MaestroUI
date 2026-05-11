@@ -692,6 +692,61 @@ a {
   gap: 8px;
 }
 
+.citation-list {
+  display: grid;
+  gap: 10px;
+  padding-left: 20px;
+  margin: 10px 0 0;
+}
+
+.citation-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.citation-card h3,
+.message-metadata-details h3 {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.message-metadata-details {
+  flex-basis: 100%;
+  margin-top: 4px;
+}
+
+.message-metadata-details summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+.metadata-list {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 12px;
+}
+
+.metadata-list div {
+  display: grid;
+  grid-template-columns: minmax(110px, 160px) 1fr;
+  gap: 10px;
+}
+
+.metadata-list dt {
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.metadata-list dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 .chat-composer {
   display: grid;
   grid-template-columns: 180px minmax(0, 1fr) auto;

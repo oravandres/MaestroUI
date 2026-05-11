@@ -30,6 +30,37 @@ const conversationDetail: ConversationDetail = {
   messages: [],
 };
 
+const conversationWithMetadata: ConversationDetail = {
+  ...conversationDetail,
+  messages: [
+    {
+      id: "message-1",
+      conversation_id: "conversation-1",
+      role: "assistant",
+      content: "Use the rollback runbook.",
+      model_id: "llama-3",
+      system_id: "sparky",
+      mode: "rag",
+      sources: [
+        {
+          title: "Rollback runbook",
+          uri: "https://docs.example/runbook",
+          document_id: "doc-1",
+          chunk_id: "chunk-7",
+          score: 0.82,
+          text: "Rollback steps for the production release.",
+          page: 12,
+          verifier: { claim_id: "claim-1" },
+        },
+        "legacy-source",
+      ],
+      usage: { total_tokens: 42 },
+      metadata: { latency_ms: 250, trace: { id: "trace-1" } },
+      created_at: "2026-05-11T08:01:00Z",
+    },
+  ],
+};
+
 describe("ConversationPage", () => {
   beforeEach(() => {
     vi.mocked(fetchConversation).mockResolvedValue(conversationDetail);
@@ -119,5 +150,40 @@ describe("ConversationPage", () => {
       content: "hello",
       mode: "fast",
     });
+  });
+
+  it("renders structured citations and useful message metadata", async () => {
+    vi.mocked(fetchConversation).mockResolvedValue(conversationWithMetadata);
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/chat/:id" element={<ConversationPage />} />
+      </Routes>,
+      { route: "/chat/conversation-1" }
+    );
+
+    expect(await screen.findByText("Use the rollback runbook.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Rollback runbook" })).toHaveAttribute(
+      "href",
+      "https://docs.example/runbook"
+    );
+    expect(screen.getByText("Document doc-1")).toBeInTheDocument();
+    expect(screen.getByText("Chunk chunk-7")).toBeInTheDocument();
+    expect(screen.getByText("Score 0.82")).toBeInTheDocument();
+    expect(screen.getByText("Rollback steps for the production release.")).toBeInTheDocument();
+    expect(screen.getByText("Additional source metadata")).toBeInTheDocument();
+    expect(screen.getByText("Source 2 raw payload")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByText("Additional source metadata"));
+
+    expect(screen.getByLabelText("Source 1 additional metadata")).toHaveTextContent("claim-1");
+
+    await userEvent.click(screen.getByText("Metadata"));
+
+    expect(screen.getByText("total_tokens")).toBeInTheDocument();
+    expect(screen.getByText("42")).toBeInTheDocument();
+    expect(screen.getByText("latency_ms")).toBeInTheDocument();
+    expect(screen.getByText("250")).toBeInTheDocument();
+    expect(screen.getByLabelText("Complex message metadata")).toHaveTextContent("trace-1");
   });
 });
