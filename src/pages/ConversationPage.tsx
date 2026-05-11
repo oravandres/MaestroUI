@@ -2,7 +2,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import { Send, Square } from "lucide-react";
-import { type Message, fetchConversation, streamChatMessage } from "@/api/chat";
+import {
+  type Message,
+  chatModes,
+  fetchConversation,
+  isChatMode,
+  streamChatMessage,
+} from "@/api/chat";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { JsonPreview } from "@/components/common/JsonPreview";
@@ -10,13 +16,11 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { formatDateTime } from "@/utils/format";
 
-const chatModes = ["balanced", "fast", "premium", "rag"];
-
 export function ConversationPage() {
   const { id } = useParams();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState("");
-  const [mode, setMode] = useState(chatModes[0]);
+  const [mode, setMode] = useState<string>(chatModes[0]);
   const [streamedText, setStreamedText] = useState("");
   const [sendError, setSendError] = useState<unknown>(null);
   const [isSending, setIsSending] = useState(false);
@@ -36,14 +40,22 @@ export function ConversationPage() {
   }, [id]);
 
   useEffect(() => {
-    if (conversationQuery.data?.conversation.mode) {
-      setMode(conversationQuery.data.conversation.mode);
+    const conversationMode = conversationQuery.data?.conversation.mode;
+    if (conversationMode) {
+      setMode(conversationMode);
     }
   }, [conversationQuery.data?.conversation.mode]);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!id || draft.trim() === "") return;
+
+    if (!isChatMode(mode)) {
+      setSendError(
+        new Error(`Mode "${mode}" is not supported by this UI yet. Select a supported mode before sending.`)
+      );
+      return;
+    }
 
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -87,6 +99,7 @@ export function ConversationPage() {
   }
 
   const messages = conversationQuery.data?.messages ?? [];
+  const unsupportedMode = mode && !isChatMode(mode) ? mode : undefined;
 
   return (
     <div className="page-container">
@@ -133,12 +146,23 @@ export function ConversationPage() {
           <label className="field">
             <span>Mode</span>
             <select value={mode} onChange={(event) => setMode(event.target.value)}>
+              {unsupportedMode ? (
+                <option value={unsupportedMode} disabled>
+                  Unsupported: {unsupportedMode}
+                </option>
+              ) : null}
               {chatModes.map((item) => (
                 <option key={item} value={item}>
                   {item}
                 </option>
               ))}
             </select>
+            {unsupportedMode ? (
+              <p className="state-meta">
+                Mode "{unsupportedMode}" is not supported by this UI yet. Select a supported mode to
+                send.
+              </p>
+            ) : null}
           </label>
           <label className="field field-wide">
             <span>Message</span>
@@ -153,7 +177,7 @@ export function ConversationPage() {
             <button
               className="button button-primary"
               type="submit"
-              disabled={isSending || draft.trim() === ""}
+              disabled={isSending || draft.trim() === "" || Boolean(unsupportedMode)}
             >
               <Send aria-hidden="true" size={16} />
               Send
