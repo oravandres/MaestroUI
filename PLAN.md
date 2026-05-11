@@ -5,9 +5,9 @@
 > **Backend:** Maestro (Go orchestrator on MiMi K3s)
 > **Compute:** Darkbase RTX 5090 (fast) + Sparky DGX Spark (premium)
 > **Priority:** Main features first. Build a usable vertical slice before advanced polish.
-> **Status:** Foundation and thin vertical UI slices are merged. Runtime
-> proxy/BFF hardening and API contract alignment are the current stack; deeper
-> workflows follow backend endpoint implementation.
+> **Status:** Foundation, runtime proxy/BFF hardening, and API contract
+> alignment are merged. Next focus: Phase 4 chat UX — conversation search,
+> delete, full mode coverage, citations, and metadata polish.
 
 ---
 
@@ -475,19 +475,15 @@ Development (Vite proxy):
   Browser  ─── /api/v1/* ───►  Vite  ─── Authorization: Bearer <key> ───►  Maestro :8002
 ```
 
-**Current state:** `vite.config.ts` already includes a development proxy for
-`/api/v1/*` and injects `MAESTRO_API_KEY` when present. The remaining hardening
-work is to make same-origin proxying the default in `client.ts`, remove the
-production build's baked-in public API URL, and add the production nginx BFF
-proxy for `/api/v1/*`.
-
-**Target state:**
+**Current state:**
 1. **Development**: `/api/v1/*` goes through Vite's proxy by default.
    `VITE_MAESTRO_API_BASE_URL` is only an explicit escape hatch for direct API
    calls.
 2. **Production**: nginx serves the SPA and proxies `/api/v1/*` to Maestro,
    injecting the bearer token from server-only runtime env. `index.html` stays
    uncached and hashed static assets stay immutable.
+3. **CI**: the container smoke test exercises static serving and the `/api/v1`
+   BFF proxy path, including path preservation and bearer-token injection.
 
 The browser never sees or sends the raw API key.
 
@@ -553,9 +549,9 @@ handle unavailable endpoints gracefully until those backend phases ship.
 | Phase | Scope | Status |
 |-------|-------|--------|
 | ~~Phase 1~~ | Project skeleton: design system, layout shell, health check | ✅ Done |
-| ~~Phase 2~~ | Navigation, layout, and Dashboard page | ✅ Thin slice done; proxy/BFF hardening remains |
+| ~~Phase 2~~ | Navigation, layout, and Dashboard page | ✅ Done |
 | ~~Phase 3~~ | Systems & Models pages | ✅ Done |
-| Phase 4 | Chat with streaming | Thin slice done; deeper UX planned |
+| Phase 4 | Chat with streaming | Current focus: search, delete, full modes, citations, metadata polish |
 | Phase 5 | Jobs & Queue | Thin slice done; queue/workers/cancel flows planned |
 | Phase 6 | Knowledge Management | Thin slice done; source management and indexing planned |
 | Phase 7 | RAG Studio | Thin slice done; citations/verification detail planned |
