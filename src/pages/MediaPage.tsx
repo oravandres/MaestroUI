@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useRef, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { Upload, WandSparkles } from "lucide-react";
 import { fetchMediaAssets, generateMedia, uploadMedia } from "@/api/media";
@@ -13,14 +13,27 @@ import { formatDateTime } from "@/utils/format";
 type MediaType = "image" | "video" | "audio";
 
 const mediaTypes: MediaType[] = ["image", "video", "audio"];
+const emptyPrompts: Record<MediaType, string> = {
+  image: "",
+  video: "",
+  audio: "",
+};
+
+function supportsMediaType(capability: string, type: MediaType): boolean {
+  const normalized = capability.toLowerCase();
+  return normalized === "media" || normalized === `media.${type}`;
+}
 
 export function MediaPage() {
   const queryClient = useQueryClient();
   const [activeType, setActiveType] = useState<MediaType>("image");
-  const [prompt, setPrompt] = useState("");
+  const [prompts, setPrompts] = useState<Record<MediaType, string>>(emptyPrompts);
   const [modelId, setModelId] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const activeTypeRef = useRef(activeType);
+  const fileRef = useRef<File | null>(file);
+  const prompt = prompts[activeType];
   const assetsQuery = useQuery({
     queryKey: ["media-assets", activeType],
     queryFn: () => fetchMediaAssets(activeType),
@@ -33,21 +46,60 @@ export function MediaPage() {
   const generationMutation = useMutation({
     mutationFn: generateMedia,
     onSuccess: async (_data, variables) => {
-      setPrompt("");
+      setPrompts((current) =>
+        current[variables.type] === variables.prompt
+          ? { ...current, [variables.type]: "" }
+          : current
+      );
       await queryClient.invalidateQueries({ queryKey: ["media-assets", variables.type] });
     },
   });
   const uploadMutation = useMutation({
     mutationFn: uploadMedia,
     onSuccess: async (_data, variables) => {
-      setFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (activeTypeRef.current === variables.type && fileRef.current === variables.file) {
+        fileRef.current = null;
+        setFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
       await queryClient.invalidateQueries({ queryKey: ["media-assets", variables.type] });
     },
   });
 
   const mediaModels =
-    modelsQuery.data?.items.filter((model) => model.capability.includes("media")) ?? [];
+    modelsQuery.data?.items.filter((model) => supportsMediaType(model.capability, activeType)) ?? [];
+
+  useEffect(() => {
+    activeTypeRef.current = activeType;
+    fileRef.current = null;
+    setFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, [activeType]);
+
+  useEffect(() => {
+    if (modelId === "") return;
+    const selected = modelsQuery.data?.items.find((model) => model.id === modelId);
+    if (selected && !supportsMediaType(selected.capability, activeType)) {
+      setModelId("");
+    }
+  }, [activeType, modelId, modelsQuery.data?.items]);
+
+  function updatePrompt(value: string) {
+    setPrompts((current) => ({ ...current, [activeType]: value }));
+  }
+
+  function updateFile(value: File | null) {
+    fileRef.current = value;
+    setFile(value);
+  }
+
+  function changeActiveType(type: MediaType) {
+    activeTypeRef.current = type;
+    fileRef.current = null;
+    setActiveType(type);
+    setFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
 
   function submitGeneration(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -79,7 +131,7 @@ export function MediaPage() {
             type="button"
             aria-pressed={activeType === type}
             key={type}
-            onClick={() => setActiveType(type)}
+            onClick={() => changeActiveType(type)}
           >
             {type}
           </button>
@@ -103,7 +155,7 @@ export function MediaPage() {
             </label>
             <label className="field field-wide">
               <span>Prompt</span>
-              <textarea rows={4} value={prompt} onChange={(event) => setPrompt(event.target.value)} />
+              <textarea rows={4} value={prompt} onChange={(event) => updatePrompt(event.target.value)} />
             </label>
             <button
               className="button button-primary"
@@ -132,7 +184,7 @@ export function MediaPage() {
               <input
                 ref={fileInputRef}
                 type="file"
-                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                onChange={(event) => updateFile(event.target.files?.[0] ?? null)}
               />
             </label>
             <button

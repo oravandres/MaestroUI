@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/api/client";
@@ -80,8 +80,21 @@ describe("PR3 tool pages", () => {
           created_at: "2026-05-11T08:00:00Z",
           updated_at: "2026-05-11T08:00:00Z",
         },
+        {
+          id: "mimi-video",
+          system_id: "mimi",
+          name: "MiMi Video",
+          capability: "media.video",
+          quality_tier: "standard",
+          status: "online",
+          residency_state: "warm",
+          context_window: null,
+          metadata: {},
+          created_at: "2026-05-11T08:00:00Z",
+          updated_at: "2026-05-11T08:00:00Z",
+        },
       ],
-      pagination: { total: 1 },
+      pagination: { total: 2 },
     });
     vi.mocked(analyzeReasoning).mockRejectedValue(
       new ApiError("not found", 404, { error: { message: "not found" } })
@@ -134,11 +147,66 @@ describe("PR3 tool pages", () => {
     await waitFor(() => {
       expect(screen.getAllByText("MiMi Image").length).toBeGreaterThan(0);
     });
+    expect(screen.queryByText("MiMi Video")).not.toBeInTheDocument();
 
     await user.type(screen.getByLabelText(/prompt/i), "Generate an architecture diagram");
     await user.click(screen.getByRole("button", { name: /generate/i }));
 
     expect(await screen.findByText("Generation failed")).toBeInTheDocument();
+  });
+
+  it("keeps media generation and upload cleanup scoped to the submitted media type", async () => {
+    const user = userEvent.setup();
+    let resolveGeneration: (value: { job_id: string; status: string }) => void = () => {};
+    let resolveUpload: (value: { job_id: string; status: string }) => void = () => {};
+    vi.mocked(generateMedia).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveGeneration = resolve;
+        })
+    );
+    vi.mocked(uploadMedia).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveUpload = resolve;
+        })
+    );
+
+    renderWithProviders(<MediaPage />, { route: "/media" });
+
+    expect(await screen.findByText("No media assets")).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/prompt/i), "image prompt");
+    await user.click(screen.getByRole("button", { name: /generate/i }));
+
+    await user.click(screen.getByRole("button", { name: "video" }));
+    await waitFor(() => {
+      expect(screen.getAllByText("MiMi Video").length).toBeGreaterThan(0);
+    });
+    expect(screen.queryByText("MiMi Image")).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText(/prompt/i), "video prompt");
+
+    await act(async () => {
+      resolveGeneration({ job_id: "job-image", status: "queued" });
+    });
+
+    expect(screen.getByLabelText(/prompt/i)).toHaveValue("video prompt");
+
+    const fileInput = screen.getByLabelText(/file/i) as HTMLInputElement;
+    await user.upload(fileInput, new File(["video"], "video.mp4", { type: "video/mp4" }));
+    await user.click(screen.getByRole("button", { name: /upload/i }));
+
+    await user.click(screen.getByRole("button", { name: "audio" }));
+    const audioInput = screen.getByLabelText(/file/i) as HTMLInputElement;
+    await user.upload(audioInput, new File(["audio"], "audio.wav", { type: "audio/wav" }));
+
+    await act(async () => {
+      resolveUpload({ job_id: "job-video-upload", status: "queued" });
+    });
+
+    expect(audioInput.files?.[0]?.name).toBe("audio.wav");
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /upload/i })).toBeEnabled();
+    });
   });
 
   it("validates reasoning forms and shows analysis failure state", async () => {
