@@ -1,16 +1,6 @@
 import { z } from "zod";
 
-export const jsonObjectSchema: z.ZodType<
-  Record<string, unknown>,
-  z.ZodTypeDef,
-  unknown
-> = z.preprocess(
-  (value) =>
-    value !== null && typeof value === "object" && !Array.isArray(value)
-      ? value
-      : {},
-  z.record(z.unknown())
-);
+export const jsonObjectSchema = z.record(z.unknown());
 
 export const jsonArraySchema = z.array(z.unknown());
 
@@ -19,10 +9,7 @@ export const paginationSchema: z.ZodType<
   z.ZodTypeDef,
   unknown
 > = z.object({
-  total: z.preprocess(
-    (value) => (typeof value === "number" ? value : 0),
-    z.number().int().nonnegative()
-  ),
+  total: z.number().int().nonnegative(),
 });
 
 export function parseApiResponse<T>(
