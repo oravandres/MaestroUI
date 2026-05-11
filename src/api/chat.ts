@@ -63,19 +63,19 @@ export interface SendMessageInput {
 }
 
 export async function fetchConversations(): Promise<ConversationsResponse> {
-  const data = await fetchJson<unknown>("/api/v1/chat/conversations");
+  const data = await fetchJson<unknown>("/api/v1/conversations");
   return parseApiResponse(conversationsResponseSchema, data, "conversations");
 }
 
 export async function fetchConversation(id: string): Promise<ConversationDetail> {
-  const data = await fetchJson<unknown>(`/api/v1/chat/conversations/${id}`);
+  const data = await fetchJson<unknown>(`/api/v1/conversations/${id}`);
   return parseApiResponse(conversationDetailSchema, data, "conversation");
 }
 
 export async function createConversation(
   input: CreateConversationInput
 ): Promise<Conversation> {
-  const data = await postJson<unknown>("/api/v1/chat/conversations", input);
+  const data = await postJson<unknown>("/api/v1/conversations", input);
   return parseApiResponse(createConversationResponseSchema, data, "create conversation")
     .conversation;
 }
@@ -85,7 +85,7 @@ export async function sendMessage(
   input: SendMessageInput
 ): Promise<Message | undefined> {
   const data = await postJson<unknown>(
-    `/api/v1/chat/conversations/${conversationId}/messages`,
+    `/api/v1/conversations/${conversationId}/messages`,
     input
   );
   return parseApiResponse(sendMessageResponseSchema, data, "send message").message;
@@ -164,12 +164,12 @@ export async function streamChatMessage(
     throw new DOMException("The chat request was aborted.", "AbortError");
   }
 
-  const path = `/api/v1/chat/conversations/${conversationId}/stream`;
+  const path = `/api/v1/conversations/${conversationId}/messages`;
   try {
     const response = await fetch(buildApiUrl(path), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
+      body: JSON.stringify({ ...input, stream: true }),
       signal: options.signal,
     });
 

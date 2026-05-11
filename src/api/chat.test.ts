@@ -30,8 +30,11 @@ describe("streamChatMessage", () => {
 
     expect(tokens).toEqual(["Hel", "lo"]);
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining("/api/v1/chat/conversations/conversation-1/stream"),
-      expect.objectContaining({ method: "POST" })
+      expect.stringContaining("/api/v1/conversations/conversation-1/messages"),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ content: "hello", mode: "balanced", stream: true }),
+      })
     );
   });
 

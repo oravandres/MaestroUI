@@ -5,8 +5,9 @@
 > **Backend:** Maestro (Go orchestrator on MiMi K3s)
 > **Compute:** Darkbase RTX 5090 (fast) + Sparky DGX Spark (premium)
 > **Priority:** Main features first. Build a usable vertical slice before advanced polish.
-> **Status:** Foundation and thin vertical UI slices are merged. Next focus:
-> runtime proxy/BFF hardening, API contract alignment, then deeper workflows.
+> **Status:** Foundation and thin vertical UI slices are merged. Runtime
+> proxy/BFF hardening and API contract alignment are the current stack; deeper
+> workflows follow backend endpoint implementation.
 
 ---
 
@@ -554,12 +555,12 @@ handle unavailable endpoints gracefully until those backend phases ship.
 | ~~Phase 1~~ | Project skeleton: design system, layout shell, health check | ✅ Done |
 | ~~Phase 2~~ | Navigation, layout, and Dashboard page | ✅ Thin slice done; proxy/BFF hardening remains |
 | ~~Phase 3~~ | Systems & Models pages | ✅ Done |
-| Phase 4 | Chat with streaming | Thin slice done; contract alignment and deeper UX planned |
+| Phase 4 | Chat with streaming | Thin slice done; deeper UX planned |
 | Phase 5 | Jobs & Queue | Thin slice done; queue/workers/cancel flows planned |
 | Phase 6 | Knowledge Management | Thin slice done; source management and indexing planned |
 | Phase 7 | RAG Studio | Thin slice done; citations/verification detail planned |
 | Phase 8 | Coding Review | Thin slice done; review variants planned |
-| Phase 9 | Media Studio (images, video, audio) | Thin slice done; backend contract alignment planned |
+| Phase 9 | Media Studio (images, video, audio) | Thin slice done; deeper TTS/ASR asset workflows planned |
 | Phase 10 | Reasoning tools (analyze, compare) | Thin slice done; scoring detail planned |
 | Phase 11 | Settings & Monitoring | Thin slice done; validation/audit/metrics detail planned |
 
