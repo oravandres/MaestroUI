@@ -7,6 +7,22 @@ import {
   parseApiResponse,
 } from "@/api/parse";
 
+export const chatModes = [
+  "balanced",
+  "fast",
+  "premium",
+  "auto",
+  "rag",
+  "coding",
+  "reasoning",
+] as const;
+
+export type ChatMode = (typeof chatModes)[number];
+
+export function isChatMode(value: string): value is ChatMode {
+  return chatModes.some((mode) => mode === value);
+}
+
 export const conversationSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -54,12 +70,12 @@ export type ConversationDetail = z.infer<typeof conversationDetailSchema>;
 
 export interface CreateConversationInput {
   title: string;
-  mode: string;
+  mode: ChatMode;
 }
 
 export interface SendMessageInput {
   content: string;
-  mode: string;
+  mode: ChatMode;
 }
 
 export async function fetchConversations(): Promise<ConversationsResponse> {
@@ -89,6 +105,10 @@ export async function sendMessage(
     input
   );
   return parseApiResponse(sendMessageResponseSchema, data, "send message").message;
+}
+
+export async function deleteConversation(id: string): Promise<void> {
+  await fetchJson<unknown>(`/api/v1/conversations/${id}`, { method: "DELETE" });
 }
 
 export interface StreamChatMessageOptions {

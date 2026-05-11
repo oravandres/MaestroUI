@@ -2,7 +2,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import { Send, Square } from "lucide-react";
-import { type Message, fetchConversation, streamChatMessage } from "@/api/chat";
+import {
+  type ChatMode,
+  type Message,
+  chatModes,
+  fetchConversation,
+  isChatMode,
+  streamChatMessage,
+} from "@/api/chat";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { JsonPreview } from "@/components/common/JsonPreview";
@@ -10,13 +17,11 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { formatDateTime } from "@/utils/format";
 
-const chatModes = ["balanced", "fast", "premium", "rag"];
-
 export function ConversationPage() {
   const { id } = useParams();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState("");
-  const [mode, setMode] = useState(chatModes[0]);
+  const [mode, setMode] = useState<ChatMode>(chatModes[0]);
   const [streamedText, setStreamedText] = useState("");
   const [sendError, setSendError] = useState<unknown>(null);
   const [isSending, setIsSending] = useState(false);
@@ -36,8 +41,9 @@ export function ConversationPage() {
   }, [id]);
 
   useEffect(() => {
-    if (conversationQuery.data?.conversation.mode) {
-      setMode(conversationQuery.data.conversation.mode);
+    const conversationMode = conversationQuery.data?.conversation.mode;
+    if (conversationMode && isChatMode(conversationMode)) {
+      setMode(conversationMode);
     }
   }, [conversationQuery.data?.conversation.mode]);
 
@@ -132,7 +138,7 @@ export function ConversationPage() {
         <form className="chat-composer" onSubmit={onSubmit}>
           <label className="field">
             <span>Mode</span>
-            <select value={mode} onChange={(event) => setMode(event.target.value)}>
+            <select value={mode} onChange={(event) => setMode(event.target.value as ChatMode)}>
               {chatModes.map((item) => (
                 <option key={item} value={item}>
                   {item}
