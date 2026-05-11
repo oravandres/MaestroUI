@@ -185,6 +185,18 @@ export async function postJson<TResponse>(
   });
 }
 
+export async function postFormData<TResponse>(
+  path: string,
+  body: FormData,
+  init?: Omit<RequestInit, "body" | "method">
+): Promise<TResponse> {
+  return fetchJson<TResponse>(path, {
+    ...init,
+    method: "POST",
+    body,
+  });
+}
+
 export async function putJson<TResponse>(
   path: string,
   body: unknown,

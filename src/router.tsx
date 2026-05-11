@@ -1,9 +1,16 @@
 import { createBrowserRouter } from "react-router";
 import { Layout } from "@/components/Layout";
+import { ChatPage } from "@/pages/ChatPage";
+import { ConversationPage } from "@/pages/ConversationPage";
 import { DashboardPage } from "@/pages/DashboardPage";
+import { JobDetailPage } from "@/pages/JobDetailPage";
+import { JobsPage } from "@/pages/JobsPage";
+import { KnowledgePage } from "@/pages/KnowledgePage";
 import { ModelDetailPage } from "@/pages/ModelDetailPage";
 import { ModelsPage } from "@/pages/ModelsPage";
 import { PlaceholderPage } from "@/pages/PlaceholderPage";
+import { RagRunPage } from "@/pages/RagRunPage";
+import { RagStudioPage } from "@/pages/RagStudioPage";
 import { SystemDetailPage } from "@/pages/SystemDetailPage";
 import { SystemsPage } from "@/pages/SystemsPage";
 
@@ -13,34 +20,13 @@ export const router = createBrowserRouter([
     element: <Layout />,
     children: [
       { index: true, element: <DashboardPage /> },
-      {
-        path: "chat",
-        element: <PlaceholderPage title="Chat" description="Conversation workflows arrive in PR 2." />,
-      },
-      {
-        path: "chat/:id",
-        element: <PlaceholderPage title="Conversation" description="Conversation detail arrives in PR 2." />,
-      },
-      {
-        path: "rag",
-        element: <PlaceholderPage title="RAG Studio" description="RAG run workflows arrive in PR 2." />,
-      },
-      {
-        path: "rag/:id",
-        element: <PlaceholderPage title="RAG Run" description="RAG detail arrives in PR 2." />,
-      },
-      {
-        path: "knowledge",
-        element: <PlaceholderPage title="Knowledge" description="Knowledge management arrives in PR 2." />,
-      },
-      {
-        path: "jobs",
-        element: <PlaceholderPage title="Jobs" description="Jobs and queue workflows arrive in PR 2." />,
-      },
-      {
-        path: "jobs/:id",
-        element: <PlaceholderPage title="Job Detail" description="Job detail arrives in PR 2." />,
-      },
+      { path: "chat", element: <ChatPage /> },
+      { path: "chat/:id", element: <ConversationPage /> },
+      { path: "rag", element: <RagStudioPage /> },
+      { path: "rag/:id", element: <RagRunPage /> },
+      { path: "knowledge", element: <KnowledgePage /> },
+      { path: "jobs", element: <JobsPage /> },
+      { path: "jobs/:id", element: <JobDetailPage /> },
       {
         path: "coding",
         element: <PlaceholderPage title="Coding Review" description="Coding tools arrive in PR 3." />,
