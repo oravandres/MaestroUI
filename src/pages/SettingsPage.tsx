@@ -31,6 +31,8 @@ export function SettingsPage() {
   });
 
   const grouped = useMemo(() => groupSettings(settingsQuery.data?.items ?? []), [settingsQuery.data]);
+  const isSelectedSecret = selectedKey.trim() !== "" && isSecretSetting(selectedKey);
+  const secretReplacementMissing = isSelectedSecret && rawValue.trim() === "";
 
   function startEdit(setting: Setting) {
     setSelectedKey(setting.key);
@@ -41,6 +43,10 @@ export function SettingsPage() {
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (selectedKey.trim() === "") return;
+    if (secretReplacementMissing) {
+      setValidationError("Secret replacement is required.");
+      return;
+    }
     try {
       const value = rawValue.trim() === "" ? "" : (JSON.parse(rawValue) as unknown);
       saveMutation.mutate({ key: selectedKey.trim(), value });
@@ -96,14 +102,18 @@ export function SettingsPage() {
               <textarea
                 rows={8}
                 value={rawValue}
-                placeholder={selectedKey && isSecretSetting(selectedKey) ? "Enter replacement secret value as JSON string" : ""}
+                placeholder={isSelectedSecret ? "Enter replacement secret value as JSON string" : ""}
                 onChange={(event) => setRawValue(event.target.value)}
               />
             </label>
             <button
               className="button button-primary"
               type="submit"
-              disabled={selectedKey.trim() === "" || saveMutation.isPending}
+              disabled={
+                selectedKey.trim() === "" ||
+                secretReplacementMissing ||
+                saveMutation.isPending
+              }
             >
               <Save aria-hidden="true" size={16} />
               Save

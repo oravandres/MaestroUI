@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 import { Link } from "react-router";
 import { Upload, WandSparkles } from "lucide-react";
 import { fetchMediaAssets, generateMedia, uploadMedia } from "@/api/media";
@@ -20,6 +20,7 @@ export function MediaPage() {
   const [prompt, setPrompt] = useState("");
   const [modelId, setModelId] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const assetsQuery = useQuery({
     queryKey: ["media-assets", activeType],
     queryFn: () => fetchMediaAssets(activeType),
@@ -31,16 +32,17 @@ export function MediaPage() {
   });
   const generationMutation = useMutation({
     mutationFn: generateMedia,
-    onSuccess: async () => {
+    onSuccess: async (_data, variables) => {
       setPrompt("");
-      await queryClient.invalidateQueries({ queryKey: ["media-assets", activeType] });
+      await queryClient.invalidateQueries({ queryKey: ["media-assets", variables.type] });
     },
   });
   const uploadMutation = useMutation({
     mutationFn: uploadMedia,
-    onSuccess: async () => {
+    onSuccess: async (_data, variables) => {
       setFile(null);
-      await queryClient.invalidateQueries({ queryKey: ["media-assets", activeType] });
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      await queryClient.invalidateQueries({ queryKey: ["media-assets", variables.type] });
     },
   });
 
@@ -70,13 +72,12 @@ export function MediaPage() {
         <p className="page-subtitle">Image, video, and audio generation with asset status.</p>
       </header>
 
-      <div className="tabs" role="tablist" aria-label="Media type">
+      <div className="tabs" aria-label="Media type">
         {mediaTypes.map((type) => (
           <button
             className={`tab ${activeType === type ? "active" : ""}`}
             type="button"
-            role="tab"
-            aria-selected={activeType === type}
+            aria-pressed={activeType === type}
             key={type}
             onClick={() => setActiveType(type)}
           >
@@ -128,7 +129,11 @@ export function MediaPage() {
           <form className="form-grid tool-form" onSubmit={submitUpload}>
             <label className="field field-wide">
               <span>File</span>
-              <input type="file" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
+              <input
+                ref={fileInputRef}
+                type="file"
+                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+              />
             </label>
             <button
               className="button button-secondary"

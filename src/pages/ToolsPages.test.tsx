@@ -129,6 +129,7 @@ describe("PR3 tool pages", () => {
     const user = userEvent.setup();
     renderWithProviders(<MediaPage />, { route: "/media" });
 
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
     expect(await screen.findByText("No media assets")).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getAllByText("MiMi Image").length).toBeGreaterThan(0);
@@ -158,6 +159,9 @@ describe("PR3 tool pages", () => {
 
     expect(await screen.findByText("********")).toBeInTheDocument();
     expect(screen.queryByText("secret-token")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /api.token/i }));
+    expect(screen.getByRole("button", { name: /save/i })).toBeDisabled();
 
     await user.click(screen.getByRole("button", { name: /ui.theme/i }));
     await user.clear(screen.getByLabelText(/json value/i));
