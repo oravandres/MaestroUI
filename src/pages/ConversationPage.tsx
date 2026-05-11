@@ -69,6 +69,7 @@ export function ConversationPage() {
       setStreamedText("");
     } catch (error) {
       if (!(error instanceof DOMException && error.name === "AbortError")) {
+        setDraft(content);
         setSendError(error);
       }
     } finally {

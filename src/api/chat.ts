@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { buildApiUrl, ApiError, fetchJson, postJson } from "@/api/client";
+import { buildApiUrl, ApiError, NetworkError, fetchJson, postJson } from "@/api/client";
 import {
   jsonArraySchema,
   jsonObjectSchema,
@@ -101,6 +101,13 @@ function readRequestId(headers: Headers): string | undefined {
   return value?.trim() || undefined;
 }
 
+function isAbortError(error: unknown): boolean {
+  return (
+    (error instanceof DOMException && error.name === "AbortError") ||
+    (error instanceof Error && error.name === "AbortError")
+  );
+}
+
 function parseErrorBody(text: string): unknown {
   if (text.length === 0) return undefined;
   try {
@@ -158,37 +165,46 @@ export async function streamChatMessage(
   }
 
   const path = `/api/v1/chat/conversations/${conversationId}/stream`;
-  const response = await fetch(buildApiUrl(path), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
-    signal: options.signal,
-  });
-
-  if (!response.ok) {
-    const body = parseErrorBody(await response.text());
-    throw new ApiError(messageFromErrorBody(body, response.statusText), response.status, body, {
-      path,
+  try {
+    const response = await fetch(buildApiUrl(path), {
       method: "POST",
-      requestId: readRequestId(response.headers),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+      signal: options.signal,
     });
+
+    if (!response.ok) {
+      const body = parseErrorBody(await response.text());
+      throw new ApiError(messageFromErrorBody(body, response.statusText), response.status, body, {
+        path,
+        method: "POST",
+        requestId: readRequestId(response.headers),
+      });
+    }
+
+    if (!response.body) return;
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split(/\r?\n/);
+      buffer = lines.pop() ?? "";
+      for (const line of lines) emitStreamLine(line, options.onToken);
+    }
+
+    buffer += decoder.decode();
+    if (buffer.trim() !== "") emitStreamLine(buffer, options.onToken);
+  } catch (error) {
+    if (isAbortError(error) || error instanceof ApiError) throw error;
+    throw new NetworkError(
+      error instanceof Error ? error.message : "The Maestro API could not be reached.",
+      { path, method: "POST" },
+      { cause: error }
+    );
   }
-
-  if (!response.body) return;
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  for (;;) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split(/\r?\n/);
-    buffer = lines.pop() ?? "";
-    for (const line of lines) emitStreamLine(line, options.onToken);
-  }
-
-  buffer += decoder.decode();
-  if (buffer.trim() !== "") emitStreamLine(buffer, options.onToken);
 }

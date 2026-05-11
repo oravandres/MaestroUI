@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import { Upload } from "lucide-react";
 import { fetchDocuments, fetchSources, uploadDocument } from "@/api/knowledge";
 import { DataTable } from "@/components/common/DataTable";
@@ -14,6 +14,7 @@ export function KnowledgePage() {
   const [title, setTitle] = useState("");
   const [sourceId, setSourceId] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const sourcesQuery = useQuery({
     queryKey: ["knowledge-sources"],
     queryFn: fetchSources,
@@ -30,6 +31,7 @@ export function KnowledgePage() {
       setTitle("");
       setSourceId("");
       setFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
       await queryClient.invalidateQueries({ queryKey: ["knowledge-documents"] });
     },
   });
@@ -73,6 +75,7 @@ export function KnowledgePage() {
           <label className="field">
             <span>File</span>
             <input
+              ref={fileInputRef}
               type="file"
               onChange={(event) => setFile(event.target.files?.[0] ?? null)}
             />

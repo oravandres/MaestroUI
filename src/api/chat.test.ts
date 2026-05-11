@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { NetworkError } from "@/api/client";
 import { streamChatMessage } from "@/api/chat";
 
 describe("streamChatMessage", () => {
@@ -48,5 +49,17 @@ describe("streamChatMessage", () => {
     ).rejects.toMatchObject({ name: "AbortError" });
 
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("maps fetch failures to the shared network error type", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+
+    await expect(
+      streamChatMessage(
+        "conversation-1",
+        { content: "hello", mode: "balanced" },
+        { onToken: vi.fn() }
+      )
+    ).rejects.toBeInstanceOf(NetworkError);
   });
 });
