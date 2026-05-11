@@ -82,4 +82,42 @@ describe("ConversationPage", () => {
       expect(screen.getByRole("button", { name: /stop/i })).toBeDisabled();
     });
   });
+
+  it("preserves an unsupported server mode until the user chooses a supported mode", async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchConversation).mockResolvedValue({
+      ...conversationDetail,
+      conversation: {
+        ...conversationDetail.conversation,
+        title: "Experimental chat",
+        mode: "experimental",
+      },
+    });
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/chat/:id" element={<ConversationPage />} />
+      </Routes>,
+      { route: "/chat/conversation-1" }
+    );
+
+    await screen.findByText("Experimental chat");
+
+    const modeSelect = screen.getByRole("combobox", { name: /mode/i });
+    expect(modeSelect).toHaveValue("experimental");
+    expect(screen.getByRole("option", { name: "Unsupported: experimental" })).toBeDisabled();
+    expect(screen.getByText(/Mode "experimental" is not supported/i)).toBeInTheDocument();
+
+    const messageInput = screen.getByRole("textbox", { name: /message/i });
+    await user.type(messageInput, "hello");
+    expect(screen.getByRole("button", { name: /send/i })).toBeDisabled();
+
+    await user.selectOptions(modeSelect, "fast");
+    await user.click(screen.getByRole("button", { name: /send/i }));
+
+    expect(vi.mocked(streamChatMessage).mock.calls[0]?.[1]).toEqual({
+      content: "hello",
+      mode: "fast",
+    });
+  });
 });
