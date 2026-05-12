@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { ConfidenceBadge } from "@/components/rag/ConfidenceBadge";
 import { formatDateTime } from "@/utils/format";
 
 export function RagStudioPage() {
@@ -22,7 +23,7 @@ export function RagStudioPage() {
   const createMutation = useMutation({
     mutationFn: createRagRun,
     onSuccess: (run) => {
-      void navigate(`/rag/${run.id}`);
+      void navigate(`/rag/${encodeURIComponent(run.id)}`);
     },
   });
 
@@ -96,10 +97,16 @@ export function RagStudioPage() {
               {
                 key: "question",
                 header: "Question",
-                render: (run) => <Link to={`/rag/${run.id}`}>{run.question}</Link>,
+                render: (run) => (
+                  <Link to={`/rag/${encodeURIComponent(run.id)}`}>{run.question}</Link>
+                ),
               },
               { key: "status", header: "Status", render: (run) => <StatusBadge status={run.status} /> },
-              { key: "confidence", header: "Confidence", render: (run) => run.confidence ?? "pending" },
+              {
+                key: "confidence",
+                header: "Confidence",
+                render: (run) => <ConfidenceBadge confidence={run.confidence} />,
+              },
               { key: "started", header: "Started", render: (run) => formatDateTime(run.started_at) },
             ]}
           />
