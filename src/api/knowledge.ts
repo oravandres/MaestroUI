@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { fetchJson, postFormData } from "@/api/client";
+import { fetchJson, patchJson, postFormData, postJson } from "@/api/client";
 import { jsonObjectSchema, paginationSchema, parseApiResponse } from "@/api/parse";
 
 export const sourceSchema = z.object({
@@ -39,10 +39,28 @@ const uploadDocumentResponseSchema = z.object({
   document: documentSchema,
 });
 
+const sourceResponseSchema = z.object({
+  source: sourceSchema,
+});
+
 export type KnowledgeSource = z.infer<typeof sourceSchema>;
 export type KnowledgeDocument = z.infer<typeof documentSchema>;
 export type SourcesResponse = z.infer<typeof sourcesResponseSchema>;
 export type DocumentsResponse = z.infer<typeof documentsResponseSchema>;
+
+export interface CreateKnowledgeSourceInput {
+  name: string;
+  type: string;
+  description?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface UpdateKnowledgeSourceInput {
+  name: string;
+  type: string;
+  description?: string;
+  metadata?: Record<string, unknown>;
+}
 
 export interface UploadDocumentInput {
   title: string;
@@ -53,6 +71,27 @@ export interface UploadDocumentInput {
 export async function fetchSources(): Promise<SourcesResponse> {
   const data = await fetchJson<unknown>("/api/v1/knowledge/sources");
   return parseApiResponse(sourcesResponseSchema, data, "knowledge sources");
+}
+
+export async function createSource(
+  input: CreateKnowledgeSourceInput
+): Promise<KnowledgeSource> {
+  const data = await postJson<unknown>("/api/v1/knowledge/sources", {
+    ...input,
+    metadata: input.metadata ?? {},
+  });
+  return parseApiResponse(sourceResponseSchema, data, "create knowledge source").source;
+}
+
+export async function updateSource(
+  id: string,
+  input: UpdateKnowledgeSourceInput
+): Promise<KnowledgeSource> {
+  const data = await patchJson<unknown>(`/api/v1/knowledge/sources/${id}`, {
+    ...input,
+    metadata: input.metadata ?? {},
+  });
+  return parseApiResponse(sourceResponseSchema, data, "update knowledge source").source;
 }
 
 export async function fetchDocuments(): Promise<DocumentsResponse> {

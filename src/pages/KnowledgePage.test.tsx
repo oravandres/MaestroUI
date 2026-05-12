@@ -1,20 +1,24 @@
-import { screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/api/client";
 import {
   type KnowledgeDocument,
   type KnowledgeSource,
+  createSource,
   fetchDocuments,
   fetchSources,
+  updateSource,
   uploadDocument,
 } from "@/api/knowledge";
 import { KnowledgePage } from "@/pages/KnowledgePage";
 import { renderWithProviders } from "@/test/render";
 
 vi.mock("@/api/knowledge", () => ({
+  createSource: vi.fn(),
   fetchDocuments: vi.fn(),
   fetchSources: vi.fn(),
+  updateSource: vi.fn(),
   uploadDocument: vi.fn(),
 }));
 
@@ -52,6 +56,8 @@ describe("KnowledgePage", () => {
     vi.clearAllMocks();
     vi.mocked(fetchSources).mockResolvedValue({ items: [], pagination: { total: 0 } });
     vi.mocked(fetchDocuments).mockResolvedValue({ items: [], pagination: { total: 0 } });
+    vi.mocked(createSource).mockRejectedValue(new Error("not called"));
+    vi.mocked(updateSource).mockRejectedValue(new Error("not called"));
     vi.mocked(uploadDocument).mockRejectedValue(new Error("not called"));
   });
 
@@ -96,7 +102,7 @@ describe("KnowledgePage", () => {
 
     await screen.findByRole("heading", { name: "Runbooks" });
     await user.type(screen.getByLabelText(/title/i), "Runbook");
-    await user.selectOptions(screen.getByLabelText(/source/i), "source-1");
+    await user.selectOptions(screen.getByLabelText(/^source$/i), "source-1");
     await user.upload(screen.getByLabelText(/file/i), file);
     await user.click(screen.getByRole("button", { name: /^upload$/i }));
 
@@ -107,7 +113,7 @@ describe("KnowledgePage", () => {
     });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["knowledge-documents"] });
     expect(screen.getByLabelText(/title/i)).toHaveValue("");
-    expect(screen.getByLabelText(/source/i)).toHaveValue("");
+    expect(screen.getByLabelText(/^source$/i)).toHaveValue("");
     expect((screen.getByLabelText(/file/i) as HTMLInputElement).files).toHaveLength(0);
   });
 
@@ -124,5 +130,100 @@ describe("KnowledgePage", () => {
 
     expect(await screen.findByText("Document upload failed")).toBeInTheDocument();
     expect(screen.getByText("upload failed")).toBeInTheDocument();
+  });
+
+  it("creates a source and refreshes sources", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createSource).mockResolvedValue(source());
+    const { queryClient } = renderWithProviders(<KnowledgePage />, { route: "/knowledge" });
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+    await user.type(screen.getByLabelText(/source name/i), "Runbooks");
+    await user.type(screen.getByLabelText(/source type/i), "markdown");
+    fireEvent.change(screen.getByLabelText(/metadata json/i), {
+      target: { value: JSON.stringify({ team: "ops" }) },
+    });
+    await user.click(screen.getByRole("button", { name: /^create source$/i }));
+
+    await waitFor(() => {
+      expect(vi.mocked(createSource).mock.calls[0]?.[0]).toEqual({
+        name: "Runbooks",
+        type: "markdown",
+        metadata: { team: "ops" },
+      });
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["knowledge-sources"] });
+  });
+
+  it("prefills source edits, saves updates, and refreshes sources", async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchSources).mockResolvedValue({
+      items: [source({ description: "Ops docs", metadata: { team: "ops" } })],
+      pagination: { total: 1 },
+    });
+    vi.mocked(updateSource).mockResolvedValue(source({ name: "Runbooks v2" }));
+    const { queryClient } = renderWithProviders(<KnowledgePage />, { route: "/knowledge" });
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+    await user.click(await screen.findByRole("button", { name: /edit runbooks/i }));
+
+    expect(screen.getByLabelText(/source name/i)).toHaveValue("Runbooks");
+    expect(screen.getByLabelText(/source type/i)).toHaveValue("markdown");
+    expect(screen.getByLabelText(/description/i)).toHaveValue("Ops docs");
+    expect(screen.getByLabelText(/metadata json/i)).toHaveValue(
+      JSON.stringify({ team: "ops" }, null, 2)
+    );
+
+    await user.clear(screen.getByLabelText(/source name/i));
+    await user.type(screen.getByLabelText(/source name/i), "Runbooks v2");
+    await user.click(screen.getByRole("button", { name: /^save source$/i }));
+
+    await waitFor(() => {
+      expect(vi.mocked(updateSource).mock.calls[0]?.[0]).toBe("source-1");
+    });
+    expect(vi.mocked(updateSource).mock.calls[0]?.[1]).toEqual({
+      name: "Runbooks v2",
+      type: "markdown",
+      description: "Ops docs",
+      metadata: { team: "ops" },
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["knowledge-sources"] });
+  });
+
+  it("keeps source edit failures visible", async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchSources).mockResolvedValue({ items: [source()], pagination: { total: 1 } });
+    vi.mocked(updateSource).mockRejectedValue(new Error("save failed"));
+
+    renderWithProviders(<KnowledgePage />, { route: "/knowledge" });
+
+    await user.click(await screen.findByRole("button", { name: /edit runbooks/i }));
+    await user.click(screen.getByRole("button", { name: /^save source$/i }));
+
+    expect(await screen.findByText("Source could not be saved")).toBeInTheDocument();
+    expect(screen.getByText("save failed")).toBeInTheDocument();
+  });
+
+  it("rejects invalid source metadata", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<KnowledgePage />, { route: "/knowledge" });
+
+    await user.type(screen.getByLabelText(/source name/i), "Runbooks");
+    await user.type(screen.getByLabelText(/source type/i), "markdown");
+    fireEvent.change(screen.getByLabelText(/metadata json/i), {
+      target: { value: "{bad json" },
+    });
+    await user.click(screen.getByRole("button", { name: /^create source$/i }));
+
+    expect(await screen.findByText("Metadata must be valid JSON.")).toBeInTheDocument();
+    expect(vi.mocked(createSource)).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText(/metadata json/i), {
+      target: { value: "[]" },
+    });
+    await user.click(screen.getByRole("button", { name: /^create source$/i }));
+
+    expect(await screen.findByText("Metadata must be a JSON object.")).toBeInTheDocument();
+    expect(vi.mocked(createSource)).not.toHaveBeenCalled();
   });
 });
