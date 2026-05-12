@@ -9,7 +9,7 @@ import {
   uploadDocument,
 } from "@/api/knowledge";
 import { generateMedia, uploadMedia } from "@/api/media";
-import { createRagRun } from "@/api/rag";
+import { createRagRun, fetchRagRun } from "@/api/rag";
 import { saveSetting } from "@/api/settings";
 
 function jsonResponse(body: unknown): Response {
@@ -78,6 +78,31 @@ describe("API route contracts", () => {
         method: "POST",
         body: JSON.stringify({ question: "What changed?" }),
       })
+    );
+  });
+
+  it("fetches RAG run detail with an encoded run id", async () => {
+    const fetchMock = stubFetch({
+      run: {
+        id: "rag/with space",
+        conversation_id: null,
+        question: "What changed?",
+        status: "completed",
+        retrieval_rounds: [],
+        evidence: [],
+        answer: "A dashboard was added.",
+        citations: [],
+        confidence: "high",
+        error: null,
+        started_at: "2026-05-11T08:00:00Z",
+        completed_at: "2026-05-11T08:01:00Z",
+      },
+    });
+
+    await fetchRagRun("rag/with space");
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "/api/v1/rag/runs/rag%2Fwith%20space"
     );
   });
 

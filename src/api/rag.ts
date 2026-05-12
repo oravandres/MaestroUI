@@ -40,7 +40,9 @@ export async function fetchRagRuns(): Promise<RagRunsResponse> {
 }
 
 export async function fetchRagRun(id: string): Promise<RagRun> {
-  const data = await fetchJson<unknown>(`/api/v1/rag/runs/${id}`);
+  const data = await fetchJson<unknown>(
+    `/api/v1/rag/runs/${encodeURIComponent(id)}`
+  );
   return parseApiResponse(ragRunResponseSchema, data, "rag run").run;
 }
 

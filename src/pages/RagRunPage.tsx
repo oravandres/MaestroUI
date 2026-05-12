@@ -5,6 +5,7 @@ import { ErrorState } from "@/components/common/ErrorState";
 import { JsonPreview } from "@/components/common/JsonPreview";
 import { LoadingState } from "@/components/common/LoadingState";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { ConfidenceBadge } from "@/components/rag/ConfidenceBadge";
 import { formatDateTime } from "@/utils/format";
 
 export function RagRunPage() {
@@ -43,7 +44,9 @@ export function RagRunPage() {
             <dl className="definition-list">
               <div>
                 <dt>Confidence</dt>
-                <dd>{run.confidence ?? "pending"}</dd>
+                <dd>
+                  <ConfidenceBadge confidence={run.confidence} />
+                </dd>
               </div>
               <div>
                 <dt>Started</dt>
