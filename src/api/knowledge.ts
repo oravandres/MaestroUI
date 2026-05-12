@@ -73,6 +73,13 @@ export async function fetchSources(): Promise<SourcesResponse> {
   return parseApiResponse(sourcesResponseSchema, data, "knowledge sources");
 }
 
+export async function fetchSource(id: string): Promise<KnowledgeSource> {
+  const data = await fetchJson<unknown>(
+    `/api/v1/knowledge/sources/${encodeURIComponent(id)}`
+  );
+  return parseApiResponse(sourceResponseSchema, data, "knowledge source").source;
+}
+
 export async function createSource(
   input: CreateKnowledgeSourceInput
 ): Promise<KnowledgeSource> {
@@ -87,10 +94,13 @@ export async function updateSource(
   id: string,
   input: UpdateKnowledgeSourceInput
 ): Promise<KnowledgeSource> {
-  const data = await patchJson<unknown>(`/api/v1/knowledge/sources/${id}`, {
-    ...input,
-    metadata: input.metadata ?? {},
-  });
+  const data = await patchJson<unknown>(
+    `/api/v1/knowledge/sources/${encodeURIComponent(id)}`,
+    {
+      ...input,
+      metadata: input.metadata ?? {},
+    }
+  );
   return parseApiResponse(sourceResponseSchema, data, "update knowledge source").source;
 }
 

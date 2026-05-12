@@ -7,6 +7,7 @@ import { DashboardPage } from "@/pages/DashboardPage";
 import { JobDetailPage } from "@/pages/JobDetailPage";
 import { JobsPage } from "@/pages/JobsPage";
 import { KnowledgePage } from "@/pages/KnowledgePage";
+import { KnowledgeSourcePage } from "@/pages/KnowledgeSourcePage";
 import { MediaPage } from "@/pages/MediaPage";
 import { ModelDetailPage } from "@/pages/ModelDetailPage";
 import { ModelsPage } from "@/pages/ModelsPage";
@@ -29,6 +30,7 @@ export const router = createBrowserRouter([
       { path: "rag", element: <RagStudioPage /> },
       { path: "rag/:id", element: <RagRunPage /> },
       { path: "knowledge", element: <KnowledgePage /> },
+      { path: "knowledge/sources/:id", element: <KnowledgeSourcePage /> },
       { path: "jobs", element: <JobsPage /> },
       { path: "jobs/:id", element: <JobDetailPage /> },
       { path: "coding", element: <CodingPage /> },
