@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createConversation } from "@/api/chat";
 import { submitCodeReview } from "@/api/coding";
-import { uploadDocument } from "@/api/knowledge";
+import { createSource, updateSource, uploadDocument } from "@/api/knowledge";
 import { generateMedia, uploadMedia } from "@/api/media";
 import { createRagRun } from "@/api/rag";
 import { saveSetting } from "@/api/settings";
@@ -173,6 +173,66 @@ describe("API route contracts", () => {
     expect((init.body as FormData).get("title")).toBe("Runbook");
     expect((init.body as FormData).get("source_id")).toBe("source-1");
     expect((init.body as FormData).get("file")).toBe(file);
+  });
+
+  it("posts knowledge source creation to the sources route", async () => {
+    const fetchMock = stubFetch({
+      source: {
+        id: "source-1",
+        name: "Runbooks",
+        type: "markdown",
+        status: "created",
+        description: null,
+        metadata: {},
+        created_at: "2026-05-11T08:00:00Z",
+        updated_at: "2026-05-11T08:00:00Z",
+      },
+    });
+
+    await createSource({ name: "Runbooks", type: "markdown" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/knowledge/sources",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ name: "Runbooks", type: "markdown", metadata: {} }),
+      })
+    );
+  });
+
+  it("patches knowledge source updates through the source detail route", async () => {
+    const fetchMock = stubFetch({
+      source: {
+        id: "source-1",
+        name: "Runbooks",
+        type: "markdown",
+        status: "created",
+        description: "Ops notes",
+        metadata: { team: "ops" },
+        created_at: "2026-05-11T08:00:00Z",
+        updated_at: "2026-05-11T08:00:00Z",
+      },
+    });
+
+    await updateSource("source-1", {
+      name: "Runbooks",
+      type: "markdown",
+      description: "Ops notes",
+      metadata: { team: "ops" },
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/knowledge/sources/source-1",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({
+          name: "Runbooks",
+          type: "markdown",
+          description: "Ops notes",
+          metadata: { team: "ops" },
+        }),
+      })
+    );
   });
 
   it("patches settings through the aggregate settings route", async () => {
