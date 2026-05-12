@@ -3,6 +3,7 @@ import { createConversation } from "@/api/chat";
 import { submitCodeReview } from "@/api/coding";
 import {
   createSource,
+  fetchDocument,
   fetchSource,
   updateSource,
   uploadDocument,
@@ -258,6 +259,28 @@ describe("API route contracts", () => {
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
       "/api/v1/knowledge/sources/source%2Fwith%20space"
+    );
+  });
+
+  it("fetches knowledge document detail with an encoded document id", async () => {
+    const fetchMock = stubFetch({
+      document: {
+        id: "document/with space",
+        source_id: "source-1",
+        title: "Runbook",
+        uri: null,
+        content_type: "text/markdown",
+        status: "pending",
+        metadata: {},
+        created_at: "2026-05-11T08:00:00Z",
+        updated_at: "2026-05-11T08:00:00Z",
+      },
+    });
+
+    await fetchDocument("document/with space");
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "/api/v1/knowledge/documents/document%2Fwith%20space"
     );
   });
 
