@@ -1,7 +1,8 @@
 import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Route, Routes } from "react-router";
-import { fetchJob } from "@/api/jobs";
+import { cancelJob, fetchJob } from "@/api/jobs";
 import { JobDetailPage } from "@/pages/JobDetailPage";
 import { renderWithProviders } from "@/test/render";
 
@@ -43,7 +44,9 @@ function jobDetail(status: string) {
 
 describe("JobDetailPage", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     vi.mocked(fetchJob).mockResolvedValue(jobDetail("queued"));
+    vi.mocked(cancelJob).mockResolvedValue(jobDetail("cancelled").job);
   });
 
   it("enables cancellation only for cancellable statuses", async () => {
@@ -70,5 +73,52 @@ describe("JobDetailPage", () => {
     );
 
     expect(await screen.findByRole("button", { name: /cancel/i })).toBeDisabled();
+  });
+
+  it("confirms cancellation and refreshes detail, list, and summary queries", async () => {
+    const user = userEvent.setup();
+    const { queryClient } = renderWithProviders(
+      <Routes>
+        <Route path="/jobs/:id" element={<JobDetailPage />} />
+      </Routes>,
+      { route: "/jobs/job-queued" }
+    );
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+    await screen.findByText("job-queued");
+    await user.click(screen.getByRole("button", { name: /^cancel$/i }));
+
+    expect(screen.getByRole("dialog", { name: /cancel job/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^cancel job$/i }));
+
+    await waitFor(() => {
+      expect(vi.mocked(cancelJob)).toHaveBeenCalledWith("job-queued");
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: /cancel job/i })).not.toBeInTheDocument();
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["job", "job-queued"] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["jobs"] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["jobs-summary"] });
+  });
+
+  it("keeps the detail confirmation open when cancellation fails", async () => {
+    const user = userEvent.setup();
+    vi.mocked(cancelJob).mockRejectedValue(new Error("cancel failed"));
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/jobs/:id" element={<JobDetailPage />} />
+      </Routes>,
+      { route: "/jobs/job-queued" }
+    );
+
+    await screen.findByText("job-queued");
+    await user.click(screen.getByRole("button", { name: /^cancel$/i }));
+    await user.click(screen.getByRole("button", { name: /^cancel job$/i }));
+
+    expect(await screen.findByText("Job could not be cancelled")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: /cancel job/i })).toBeInTheDocument();
   });
 });

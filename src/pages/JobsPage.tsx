@@ -1,6 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
-import { fetchJobs, fetchQueueSummary } from "@/api/jobs";
+import { XCircle } from "lucide-react";
+import {
+  type Job,
+  canCancelJob,
+  cancelJob,
+  fetchJobs,
+  fetchQueueSummary,
+} from "@/api/jobs";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { DataTable } from "@/components/common/DataTable";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
@@ -13,7 +21,9 @@ import { useState } from "react";
 const jobStatuses = ["", "queued", "running", "completed", "failed", "cancelled"];
 
 export function JobsPage() {
+  const queryClient = useQueryClient();
   const [status, setStatus] = useState("");
+  const [cancelTarget, setCancelTarget] = useState<Job | null>(null);
   const jobsQuery = useQuery({
     queryKey: ["jobs", status],
     queryFn: () => fetchJobs({ status: status || undefined }),
@@ -23,6 +33,17 @@ export function JobsPage() {
     queryKey: ["jobs-summary"],
     queryFn: fetchQueueSummary,
     retry: false,
+  });
+  const cancelMutation = useMutation({
+    mutationFn: cancelJob,
+    onSuccess: async (_job, id) => {
+      setCancelTarget(null);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["jobs"] }),
+        queryClient.invalidateQueries({ queryKey: ["jobs-summary"] }),
+        queryClient.invalidateQueries({ queryKey: ["job", id] }),
+      ]);
+    },
   });
 
   return (
@@ -93,9 +114,47 @@ export function JobsPage() {
                 header: "Created",
                 render: (job) => formatDateTime(job.created_at),
               },
+              {
+                key: "actions",
+                header: "Actions",
+                render: (job) => (
+                  <button
+                    className="icon-button"
+                    type="button"
+                    aria-label={`Cancel ${job.id}`}
+                    disabled={!canCancelJob(job.status) || cancelMutation.isPending}
+                    onClick={() => {
+                      cancelMutation.reset();
+                      setCancelTarget(job);
+                    }}
+                  >
+                    <XCircle aria-hidden="true" size={16} />
+                  </button>
+                ),
+              },
             ]}
           />
         </section>
+      ) : null}
+      {cancelTarget ? (
+        <ConfirmDialog
+          title="Cancel job"
+          confirmLabel="Cancel job"
+          isBusy={cancelMutation.isPending}
+          onCancel={() => {
+            cancelMutation.reset();
+            setCancelTarget(null);
+          }}
+          onConfirm={() => cancelMutation.mutate(cancelTarget.id)}
+        >
+          <p>
+            Cancel <strong>{cancelTarget.id}</strong>? Maestro will stop running or queued work for
+            this job when cancellation is accepted.
+          </p>
+          {cancelMutation.isError ? (
+            <ErrorState error={cancelMutation.error} title="Job could not be cancelled" />
+          ) : null}
+        </ConfirmDialog>
       ) : null}
     </div>
   );
