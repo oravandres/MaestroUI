@@ -6,9 +6,10 @@
 > **Compute:** Darkbase RTX 5090 (fast) + Sparky DGX Spark (premium)
 > **Priority:** Main features first. Build a usable vertical slice before advanced polish.
 > **Status:** Foundation, runtime proxy/BFF hardening, API contract alignment,
-> Phase 4 chat UX, and Phase 5 core Jobs & Queue UX are merged. Next focus:
-> Phase 6 Knowledge Management — upload route alignment, source create/edit,
-> and indexing once the backend indexing response contract exists.
+> Phase 4 chat UX, Phase 5 core Jobs & Queue UX, and Phase 6 source
+> create/edit are merged. Next focus: Phase 6 Knowledge Management —
+> source/document detail views while indexing remains deferred until the
+> backend indexing response contract exists.
 
 ---
 
@@ -554,7 +555,7 @@ handle unavailable endpoints gracefully until those backend phases ship.
 | ~~Phase 3~~ | Systems & Models pages | ✅ Done |
 | ~~Phase 4~~ | Chat with streaming | ✅ Done |
 | Phase 5 | Jobs & Queue | Core UX done; worker visibility deferred until backend contract exists |
-| Phase 6 | Knowledge Management | Current focus: upload route alignment, source create/edit, indexing once backend contract exists |
+| Phase 6 | Knowledge Management | Current focus: source/document detail views; indexing deferred until backend contract exists |
 | Phase 7 | RAG Studio | Thin slice done; citations/verification detail planned |
 | Phase 8 | Coding Review | Thin slice done; review variants planned |
 | Phase 9 | Media Studio (images, video, audio) | Thin slice done; deeper TTS/ASR asset workflows planned |
@@ -646,19 +647,23 @@ Acceptance criteria:
 
 Tasks:
 
-- [ ] Source create/edit.
+- [x] Source create/edit.
 - [x] Source list.
 - [x] Document list.
 - [x] File upload form (multipart).
+- [ ] Source detail view.
+- [ ] Document detail view.
 - [ ] Indexing trigger and progress display.
 - [ ] Document chunk/vector status.
 
 Document indexing actions are deferred until Maestro defines the
-`POST /api/v1/knowledge/documents/{id}/index` response shape.
+`POST /api/v1/knowledge/documents/{id}/index` response shape. Chunk and vector
+status stay deferred until document detail responses expose stable fields for
+that data.
 
 Acceptance criteria:
 
-- [ ] Sources can be created and browsed.
+- [x] Sources can be created and browsed.
 - [ ] Documents can be uploaded (PDF, Markdown, text).
 - [ ] Indexing progress is visible.
 
