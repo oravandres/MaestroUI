@@ -68,6 +68,17 @@ describe("KnowledgePage", () => {
     expect(await screen.findByText("No documents indexed")).toBeInTheDocument();
   });
 
+  it("links sources to their detail pages", async () => {
+    vi.mocked(fetchSources).mockResolvedValue({ items: [source()], pagination: { total: 1 } });
+
+    renderWithProviders(<KnowledgePage />, { route: "/knowledge" });
+
+    expect(await screen.findByRole("link", { name: "Runbooks" })).toHaveAttribute(
+      "href",
+      "/knowledge/sources/source-1"
+    );
+  });
+
   it("keeps unavailable knowledge endpoints visible and retryable", async () => {
     vi.mocked(fetchDocuments).mockRejectedValue(
       new ApiError("not found", 404, { error: { message: "not found" } })

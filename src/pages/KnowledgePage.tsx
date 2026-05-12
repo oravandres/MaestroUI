@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormEvent, useRef, useState } from "react";
 import { Pencil, Plus, Save, Upload } from "lucide-react";
+import { Link } from "react-router";
 import {
   type CreateKnowledgeSourceInput,
   type KnowledgeSource,
@@ -251,7 +252,11 @@ export function KnowledgePage() {
               {sourcesQuery.data.items.map((source) => (
                 <article className="list-card" key={source.id}>
                   <div>
-                    <h3>{source.name}</h3>
+                    <h3>
+                      <Link to={`/knowledge/sources/${encodeURIComponent(source.id)}`}>
+                        {source.name}
+                      </Link>
+                    </h3>
                     <p>{source.type}</p>
                   </div>
                   <div className="button-row">
