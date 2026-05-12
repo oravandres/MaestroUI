@@ -6,6 +6,7 @@ import { ConversationPage } from "@/pages/ConversationPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { JobDetailPage } from "@/pages/JobDetailPage";
 import { JobsPage } from "@/pages/JobsPage";
+import { KnowledgeDocumentPage } from "@/pages/KnowledgeDocumentPage";
 import { KnowledgePage } from "@/pages/KnowledgePage";
 import { KnowledgeSourcePage } from "@/pages/KnowledgeSourcePage";
 import { MediaPage } from "@/pages/MediaPage";
@@ -31,6 +32,7 @@ export const router = createBrowserRouter([
       { path: "rag/:id", element: <RagRunPage /> },
       { path: "knowledge", element: <KnowledgePage /> },
       { path: "knowledge/sources/:id", element: <KnowledgeSourcePage /> },
+      { path: "knowledge/documents/:id", element: <KnowledgeDocumentPage /> },
       { path: "jobs", element: <JobsPage /> },
       { path: "jobs/:id", element: <JobDetailPage /> },
       { path: "coding", element: <CodingPage /> },

@@ -88,7 +88,7 @@ describe("KnowledgeSourcePage", () => {
     expect(await screen.findByText("No documents attached")).toBeInTheDocument();
   });
 
-  it("filters documents to the current source", async () => {
+  it("filters documents to the current source and links to document detail", async () => {
     vi.mocked(fetchDocuments).mockResolvedValue({
       items: [document(), document({ id: "document-2", source_id: "other", title: "Other" })],
       pagination: { total: 2 },
@@ -97,7 +97,10 @@ describe("KnowledgeSourcePage", () => {
     renderPage();
 
     const table = await screen.findByRole("table", { name: "Source documents" });
-    expect(within(table).getByText("Runbook")).toBeInTheDocument();
+    expect(within(table).getByRole("link", { name: "Runbook" })).toHaveAttribute(
+      "href",
+      "/knowledge/documents/document-1"
+    );
     expect(within(table).queryByText("Other")).not.toBeInTheDocument();
   });
 });

@@ -39,6 +39,10 @@ const uploadDocumentResponseSchema = z.object({
   document: documentSchema,
 });
 
+const documentResponseSchema = z.object({
+  document: documentSchema,
+});
+
 const sourceResponseSchema = z.object({
   source: sourceSchema,
 });
@@ -107,6 +111,13 @@ export async function updateSource(
 export async function fetchDocuments(): Promise<DocumentsResponse> {
   const data = await fetchJson<unknown>("/api/v1/knowledge/documents");
   return parseApiResponse(documentsResponseSchema, data, "knowledge documents");
+}
+
+export async function fetchDocument(id: string): Promise<KnowledgeDocument> {
+  const data = await fetchJson<unknown>(
+    `/api/v1/knowledge/documents/${encodeURIComponent(id)}`
+  );
+  return parseApiResponse(documentResponseSchema, data, "knowledge document").document;
 }
 
 export async function uploadDocument(input: UploadDocumentInput): Promise<KnowledgeDocument> {

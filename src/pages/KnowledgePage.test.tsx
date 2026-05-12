@@ -128,6 +128,20 @@ describe("KnowledgePage", () => {
     expect((screen.getByLabelText(/file/i) as HTMLInputElement).files).toHaveLength(0);
   });
 
+  it("links documents to their detail pages", async () => {
+    vi.mocked(fetchDocuments).mockResolvedValue({
+      items: [document()],
+      pagination: { total: 1 },
+    });
+
+    renderWithProviders(<KnowledgePage />, { route: "/knowledge" });
+
+    expect(await screen.findByRole("link", { name: "Runbook" })).toHaveAttribute(
+      "href",
+      "/knowledge/documents/document-1"
+    );
+  });
+
   it("keeps upload failures visible", async () => {
     const user = userEvent.setup();
     vi.mocked(uploadDocument).mockRejectedValue(new Error("upload failed"));

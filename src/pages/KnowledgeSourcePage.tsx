@@ -106,7 +106,15 @@ export function KnowledgeSourcePage() {
             items={documents}
             getKey={(document) => document.id}
             columns={[
-              { key: "title", header: "Title", render: (document) => document.title },
+              {
+                key: "title",
+                header: "Title",
+                render: (document) => (
+                  <Link to={`/knowledge/documents/${encodeURIComponent(document.id)}`}>
+                    {document.title}
+                  </Link>
+                ),
+              },
               {
                 key: "status",
                 header: "Status",
