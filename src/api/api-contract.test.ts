@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createConversation } from "@/api/chat";
 import { submitCodeReview } from "@/api/coding";
+import { uploadDocument } from "@/api/knowledge";
 import { generateMedia, uploadMedia } from "@/api/media";
 import { createRagRun } from "@/api/rag";
 import { saveSetting } from "@/api/settings";
@@ -144,6 +145,33 @@ describe("API route contracts", () => {
     expect(fetchMock.mock.calls[0][0]).toBe("/api/v1/audio/asr");
     expect(init.method).toBe("POST");
     expect(init.body).toBeInstanceOf(FormData);
+    expect((init.body as FormData).get("file")).toBe(file);
+  });
+
+  it("routes knowledge document uploads to the upload endpoint", async () => {
+    const fetchMock = stubFetch({
+      document: {
+        id: "document-1",
+        source_id: "source-1",
+        title: "Runbook",
+        uri: null,
+        content_type: "text/markdown",
+        status: "pending",
+        metadata: {},
+        created_at: "2026-05-11T08:00:00Z",
+        updated_at: "2026-05-11T08:00:00Z",
+      },
+    });
+    const file = new File(["# Runbook"], "runbook.md", { type: "text/markdown" });
+
+    await uploadDocument({ title: "Runbook", sourceId: "source-1", file });
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/v1/knowledge/documents/upload");
+    expect(init.method).toBe("POST");
+    expect(init.body).toBeInstanceOf(FormData);
+    expect((init.body as FormData).get("title")).toBe("Runbook");
+    expect((init.body as FormData).get("source_id")).toBe("source-1");
     expect((init.body as FormData).get("file")).toBe(file);
   });
 
