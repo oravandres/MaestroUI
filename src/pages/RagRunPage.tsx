@@ -2,11 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router";
 import { fetchRagRun } from "@/api/rag";
 import { ErrorState } from "@/components/common/ErrorState";
-import { JsonPreview } from "@/components/common/JsonPreview";
 import { LoadingState } from "@/components/common/LoadingState";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { ConfidenceBadge } from "@/components/rag/ConfidenceBadge";
-import { formatDateTime } from "@/utils/format";
+import { RagRunDetail } from "@/components/rag/RagRunDetail";
 
 export function RagRunPage() {
   const { id } = useParams();
@@ -36,47 +34,7 @@ export function RagRunPage() {
         <ErrorState error={runQuery.error} onRetry={() => void runQuery.refetch()} />
       ) : null}
 
-      {run ? (
-        <div className="detail-grid">
-          <section className="panel">
-            <h2>Answer</h2>
-            {run.answer ? <p>{run.answer}</p> : <p className="text-muted">Pending answer</p>}
-            <dl className="definition-list">
-              <div>
-                <dt>Confidence</dt>
-                <dd>
-                  <ConfidenceBadge confidence={run.confidence} />
-                </dd>
-              </div>
-              <div>
-                <dt>Started</dt>
-                <dd>{formatDateTime(run.started_at)}</dd>
-              </div>
-              <div>
-                <dt>Completed</dt>
-                <dd>{formatDateTime(run.completed_at)}</dd>
-              </div>
-              <div>
-                <dt>Conversation</dt>
-                <dd>{run.conversation_id ?? "Not linked"}</dd>
-              </div>
-            </dl>
-            {run.error ? <p className="error-text">{run.error}</p> : null}
-          </section>
-          <section className="panel">
-            <h2>Evidence</h2>
-            <JsonPreview value={run.evidence} label="RAG evidence" />
-          </section>
-          <section className="panel">
-            <h2>Citations</h2>
-            <JsonPreview value={run.citations} label="RAG citations" />
-          </section>
-          <section className="panel">
-            <h2>Retrieval rounds</h2>
-            <JsonPreview value={run.retrieval_rounds} label="RAG retrieval rounds" />
-          </section>
-        </div>
-      ) : null}
+      {run ? <RagRunDetail run={run} /> : null}
     </div>
   );
 }
