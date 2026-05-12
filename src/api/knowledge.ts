@@ -66,6 +66,6 @@ export async function uploadDocument(input: UploadDocumentInput): Promise<Knowle
   if (input.sourceId) body.set("source_id", input.sourceId);
   body.set("file", input.file);
 
-  const data = await postFormData<unknown>("/api/v1/knowledge/documents", body);
+  const data = await postFormData<unknown>("/api/v1/knowledge/documents/upload", body);
   return parseApiResponse(uploadDocumentResponseSchema, data, "upload document").document;
 }
