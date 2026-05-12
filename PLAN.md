@@ -5,9 +5,10 @@
 > **Backend:** Maestro (Go orchestrator on MiMi K3s)
 > **Compute:** Darkbase RTX 5090 (fast) + Sparky DGX Spark (premium)
 > **Priority:** Main features first. Build a usable vertical slice before advanced polish.
-> **Status:** Foundation, runtime proxy/BFF hardening, and API contract
-> alignment are merged. Next focus: Phase 4 chat UX — conversation search,
-> delete, full mode coverage, citations, and metadata polish.
+> **Status:** Foundation, runtime proxy/BFF hardening, API contract alignment,
+> and Phase 4 chat UX are merged. Next focus: Phase 5 Jobs & Queue —
+> cancellation UX, live polling, and worker visibility once the backend worker
+> contract exists.
 
 ---
 
@@ -551,8 +552,8 @@ handle unavailable endpoints gracefully until those backend phases ship.
 | ~~Phase 1~~ | Project skeleton: design system, layout shell, health check | ✅ Done |
 | ~~Phase 2~~ | Navigation, layout, and Dashboard page | ✅ Done |
 | ~~Phase 3~~ | Systems & Models pages | ✅ Done |
-| Phase 4 | Chat with streaming | Current focus: search, delete, full modes, citations, metadata polish |
-| Phase 5 | Jobs & Queue | Thin slice done; queue/workers/cancel flows planned |
+| ~~Phase 4~~ | Chat with streaming | ✅ Done |
+| Phase 5 | Jobs & Queue | Current focus: cancellation UX, live polling, worker visibility once backend contract exists |
 | Phase 6 | Knowledge Management | Thin slice done; source management and indexing planned |
 | Phase 7 | RAG Studio | Thin slice done; citations/verification detail planned |
 | Phase 8 | Coding Review | Thin slice done; review variants planned |
@@ -601,24 +602,24 @@ Acceptance criteria:
 
 Tasks:
 
-- [ ] Conversation list with search.
+- [x] Conversation list with search.
 - [x] Create new conversation.
 - [x] Message thread display.
 - [x] Chat input with mode selector.
 - [x] SSE streaming implementation (token-by-token display).
 - [x] Streaming message component with typing indicator.
-- [ ] Source citations for RAG-mode responses.
+- [x] Source citations for RAG-mode responses.
 - [x] Message metadata display (model, latency, tokens).
-- [ ] Delete conversation.
+- [x] Delete conversation.
 - [x] Cancel in-flight streams on navigation.
 
 Acceptance criteria:
 
-- [ ] Can create and continue conversations.
-- [ ] Streaming displays tokens as they arrive.
-- [ ] Mode selector switches between fast/premium/auto/RAG/coding/reasoning.
-- [ ] Citations display when returned.
-- [ ] Conversation list updates on new messages.
+- [x] Can create and continue conversations.
+- [x] Streaming displays tokens as they arrive.
+- [x] Mode selector switches between fast/premium/auto/RAG/coding/reasoning.
+- [x] Citations display when returned.
+- [x] Conversation list updates on new messages.
 
 ### Phase 5 — Jobs & Queue
 
@@ -631,6 +632,9 @@ Tasks:
 - [x] Queue overview summary.
 - [ ] Worker status cards.
 - [ ] Polling for running job status.
+
+Worker status cards are deferred until Maestro exposes a routed
+`/api/v1/workers` endpoint with a stable response contract.
 
 Acceptance criteria:
 
