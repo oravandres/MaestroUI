@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { XCircle } from "lucide-react";
 import { canCancelJob, cancelJob, fetchJob } from "@/api/jobs";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { JsonPreview } from "@/components/common/JsonPreview";
@@ -13,6 +15,7 @@ import { formatDateTime } from "@/utils/format";
 export function JobDetailPage() {
   const { id } = useParams();
   const queryClient = useQueryClient();
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const jobQuery = useQuery({
     queryKey: ["job", id],
     queryFn: () => fetchJob(id ?? ""),
@@ -22,8 +25,12 @@ export function JobDetailPage() {
   const cancelMutation = useMutation({
     mutationFn: () => cancelJob(id ?? ""),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["job", id] });
-      await queryClient.invalidateQueries({ queryKey: ["jobs"] });
+      setIsCancelDialogOpen(false);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["job", id] }),
+        queryClient.invalidateQueries({ queryKey: ["jobs"] }),
+        queryClient.invalidateQueries({ queryKey: ["jobs-summary"] }),
+      ]);
     },
   });
   const job = jobQuery.data?.job;
@@ -43,7 +50,10 @@ export function JobDetailPage() {
           className="button button-secondary"
           type="button"
           disabled={!cancelEnabled || cancelMutation.isPending}
-          onClick={() => cancelMutation.mutate()}
+          onClick={() => {
+            cancelMutation.reset();
+            setIsCancelDialogOpen(true);
+          }}
         >
           <XCircle aria-hidden="true" size={16} />
           Cancel
@@ -54,8 +64,25 @@ export function JobDetailPage() {
       {jobQuery.isError ? (
         <ErrorState error={jobQuery.error} onRetry={() => void jobQuery.refetch()} />
       ) : null}
-      {cancelMutation.isError ? (
-        <ErrorState error={cancelMutation.error} title="Job could not be cancelled" />
+      {isCancelDialogOpen && job ? (
+        <ConfirmDialog
+          title="Cancel job"
+          confirmLabel="Cancel job"
+          isBusy={cancelMutation.isPending}
+          onCancel={() => {
+            cancelMutation.reset();
+            setIsCancelDialogOpen(false);
+          }}
+          onConfirm={() => cancelMutation.mutate()}
+        >
+          <p>
+            Cancel <strong>{job.id}</strong>? Maestro will stop running or queued work for this job
+            when cancellation is accepted.
+          </p>
+          {cancelMutation.isError ? (
+            <ErrorState error={cancelMutation.error} title="Job could not be cancelled" />
+          ) : null}
+        </ConfirmDialog>
       ) : null}
 
       {job ? (
