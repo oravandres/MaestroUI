@@ -6,10 +6,10 @@
 > **Compute:** Darkbase RTX 5090 (fast) + Sparky DGX Spark (premium)
 > **Priority:** Main features first. Build a usable vertical slice before advanced polish.
 > **Status:** Foundation, runtime proxy/BFF hardening, API contract alignment,
-> Phase 4 chat UX, Phase 5 core Jobs & Queue UX, and Phase 6 source
-> create/edit are merged. Next focus: Phase 6 Knowledge Management —
-> source/document detail views while indexing remains deferred until the
-> backend indexing response contract exists.
+> Phase 4 chat UX, Phase 5 core Jobs & Queue UX, and the safe Phase 6
+> Knowledge Management slice are merged. Next focus: Phase 7 RAG Studio —
+> structured run detail with confidence, evidence, citations, retrieval rounds,
+> and verification display where the current payload exposes that data.
 
 ---
 
@@ -555,8 +555,8 @@ handle unavailable endpoints gracefully until those backend phases ship.
 | ~~Phase 3~~ | Systems & Models pages | ✅ Done |
 | ~~Phase 4~~ | Chat with streaming | ✅ Done |
 | Phase 5 | Jobs & Queue | Core UX done; worker visibility deferred until backend contract exists |
-| Phase 6 | Knowledge Management | Current focus: source/document detail views; indexing deferred until backend contract exists |
-| Phase 7 | RAG Studio | Thin slice done; citations/verification detail planned |
+| Phase 6 | Knowledge Management | Source/document management and detail views done; indexing deferred until backend contract exists |
+| Phase 7 | RAG Studio | Current focus: structured run detail, confidence, citations, and verification display |
 | Phase 8 | Coding Review | Thin slice done; review variants planned |
 | Phase 9 | Media Studio (images, video, audio) | Thin slice done; deeper TTS/ASR asset workflows planned |
 | Phase 10 | Reasoning tools (analyze, compare) | Thin slice done; scoring detail planned |
@@ -651,8 +651,8 @@ Tasks:
 - [x] Source list.
 - [x] Document list.
 - [x] File upload form (multipart).
-- [ ] Source detail view.
-- [ ] Document detail view.
+- [x] Source detail view.
+- [x] Document detail view.
 - [ ] Indexing trigger and progress display.
 - [ ] Document chunk/vector status.
 
