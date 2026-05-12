@@ -6,9 +6,9 @@
 > **Compute:** Darkbase RTX 5090 (fast) + Sparky DGX Spark (premium)
 > **Priority:** Main features first. Build a usable vertical slice before advanced polish.
 > **Status:** Foundation, runtime proxy/BFF hardening, API contract alignment,
-> and Phase 4 chat UX are merged. Next focus: Phase 5 Jobs & Queue —
-> cancellation UX, live polling, and worker visibility once the backend worker
-> contract exists.
+> Phase 4 chat UX, and Phase 5 core Jobs & Queue UX are merged. Next focus:
+> Phase 6 Knowledge Management — upload route alignment, source create/edit,
+> and indexing once the backend indexing response contract exists.
 
 ---
 
@@ -553,8 +553,8 @@ handle unavailable endpoints gracefully until those backend phases ship.
 | ~~Phase 2~~ | Navigation, layout, and Dashboard page | ✅ Done |
 | ~~Phase 3~~ | Systems & Models pages | ✅ Done |
 | ~~Phase 4~~ | Chat with streaming | ✅ Done |
-| Phase 5 | Jobs & Queue | Current focus: cancellation UX, live polling, worker visibility once backend contract exists |
-| Phase 6 | Knowledge Management | Thin slice done; source management and indexing planned |
+| Phase 5 | Jobs & Queue | Core UX done; worker visibility deferred until backend contract exists |
+| Phase 6 | Knowledge Management | Current focus: upload route alignment, source create/edit, indexing once backend contract exists |
 | Phase 7 | RAG Studio | Thin slice done; citations/verification detail planned |
 | Phase 8 | Coding Review | Thin slice done; review variants planned |
 | Phase 9 | Media Studio (images, video, audio) | Thin slice done; deeper TTS/ASR asset workflows planned |
@@ -628,19 +628,19 @@ Tasks:
 - [x] Job list with status filter.
 - [x] Job detail with event timeline.
 - [x] Job progress display.
-- [ ] Cancel job action.
+- [x] Cancel job action.
 - [x] Queue overview summary.
 - [ ] Worker status cards.
-- [ ] Polling for running job status.
+- [x] Polling for running job status.
 
-Worker status cards are deferred until Maestro exposes a routed
-`/api/v1/workers` endpoint with a stable response contract.
+Worker status cards remain deferred until Maestro exposes a routed
+`/api/v1/workers` endpoint with a stable response schema.
 
 Acceptance criteria:
 
-- [ ] Jobs display with correct status.
-- [ ] Running jobs show progress updates.
-- [ ] Cancelled jobs reflect new status.
+- [x] Jobs display with correct status.
+- [x] Running jobs show progress updates.
+- [x] Cancelled jobs reflect new status.
 
 ### Phase 6 — Knowledge Management
 
@@ -652,6 +652,9 @@ Tasks:
 - [x] File upload form (multipart).
 - [ ] Indexing trigger and progress display.
 - [ ] Document chunk/vector status.
+
+Document indexing actions are deferred until Maestro defines the
+`POST /api/v1/knowledge/documents/{id}/index` response shape.
 
 Acceptance criteria:
 
