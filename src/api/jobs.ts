@@ -63,6 +63,10 @@ export function canCancelJob(status: string): boolean {
   return status === "queued" || status === "running";
 }
 
+export function isActiveJobStatus(status: string): boolean {
+  return status === "queued" || status === "running";
+}
+
 export async function fetchJobs(options: FetchJobsOptions = {}): Promise<JobsResponse> {
   const params = new URLSearchParams();
   if (options.status) params.set("status", options.status);

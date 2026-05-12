@@ -1,6 +1,6 @@
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Route, Routes } from "react-router";
 import { cancelJob, fetchJob } from "@/api/jobs";
 import { JobDetailPage } from "@/pages/JobDetailPage";
@@ -43,6 +43,10 @@ function jobDetail(status: string) {
 }
 
 describe("JobDetailPage", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(fetchJob).mockResolvedValue(jobDetail("queued"));
@@ -120,5 +124,59 @@ describe("JobDetailPage", () => {
 
     expect(await screen.findByText("Job could not be cancelled")).toBeInTheDocument();
     expect(screen.getByRole("dialog", { name: /cancel job/i })).toBeInTheDocument();
+  });
+
+  it("polls active job details", async () => {
+    vi.useFakeTimers();
+    vi.mocked(fetchJob).mockResolvedValue(jobDetail("running"));
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/jobs/:id" element={<JobDetailPage />} />
+      </Routes>,
+      { route: "/jobs/job-running" }
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(0);
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText("job-running")).toBeInTheDocument();
+    expect(vi.mocked(fetchJob)).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2_000);
+    });
+
+    expect(vi.mocked(fetchJob)).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops polling terminal job details", async () => {
+    vi.useFakeTimers();
+    vi.mocked(fetchJob).mockResolvedValue(jobDetail("completed"));
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/jobs/:id" element={<JobDetailPage />} />
+      </Routes>,
+      { route: "/jobs/job-completed" }
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(0);
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText("job-completed")).toBeInTheDocument();
+    expect(vi.mocked(fetchJob)).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4_000);
+    });
+
+    expect(vi.mocked(fetchJob)).toHaveBeenCalledTimes(1);
   });
 });

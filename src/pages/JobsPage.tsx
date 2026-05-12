@@ -3,10 +3,13 @@ import { Link } from "react-router";
 import { XCircle } from "lucide-react";
 import {
   type Job,
+  type JobsResponse,
+  type QueueSummary,
   canCancelJob,
   cancelJob,
   fetchJobs,
   fetchQueueSummary,
+  isActiveJobStatus,
 } from "@/api/jobs";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { DataTable } from "@/components/common/DataTable";
@@ -19,6 +22,7 @@ import { formatDateTime, formatNumber } from "@/utils/format";
 import { useState } from "react";
 
 const jobStatuses = ["", "queued", "running", "completed", "failed", "cancelled"];
+const ACTIVE_JOBS_REFETCH_INTERVAL_MS = 2_000;
 
 export function JobsPage() {
   const queryClient = useQueryClient();
@@ -28,11 +32,23 @@ export function JobsPage() {
     queryKey: ["jobs", status],
     queryFn: () => fetchJobs({ status: status || undefined }),
     retry: false,
+    refetchInterval: (query) => {
+      const data = query.state.data as JobsResponse | undefined;
+      return data?.items.some((job) => isActiveJobStatus(job.status))
+        ? ACTIVE_JOBS_REFETCH_INTERVAL_MS
+        : false;
+    },
   });
   const summaryQuery = useQuery({
     queryKey: ["jobs-summary"],
     queryFn: fetchQueueSummary,
     retry: false,
+    refetchInterval: (query) => {
+      const data = query.state.data as QueueSummary | undefined;
+      return data && (data.queued > 0 || data.running > 0)
+        ? ACTIVE_JOBS_REFETCH_INTERVAL_MS
+        : false;
+    },
   });
   const cancelMutation = useMutation({
     mutationFn: cancelJob,

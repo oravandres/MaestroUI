@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { XCircle } from "lucide-react";
-import { canCancelJob, cancelJob, fetchJob } from "@/api/jobs";
+import { type JobDetail, canCancelJob, cancelJob, fetchJob, isActiveJobStatus } from "@/api/jobs";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
@@ -11,6 +11,8 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { ProgressBar } from "@/components/common/ProgressBar";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { formatDateTime } from "@/utils/format";
+
+const ACTIVE_JOB_REFETCH_INTERVAL_MS = 2_000;
 
 export function JobDetailPage() {
   const { id } = useParams();
@@ -21,6 +23,12 @@ export function JobDetailPage() {
     queryFn: () => fetchJob(id ?? ""),
     enabled: Boolean(id),
     retry: false,
+    refetchInterval: (query) => {
+      const data = query.state.data as JobDetail | undefined;
+      return data?.job && isActiveJobStatus(data.job.status)
+        ? ACTIVE_JOB_REFETCH_INTERVAL_MS
+        : false;
+    },
   });
   const cancelMutation = useMutation({
     mutationFn: () => cancelJob(id ?? ""),
