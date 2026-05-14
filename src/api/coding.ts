@@ -2,6 +2,22 @@ import { z } from "zod";
 import { postJson } from "@/api/client";
 import { jsonArraySchema, parseApiResponse } from "@/api/parse";
 
+export const codingReviewVariants = [
+  "review",
+  "architecture",
+  "refactor_plan",
+  "security_review",
+] as const;
+
+export type CodingReviewVariant = (typeof codingReviewVariants)[number];
+
+const codingReviewRoutes: Record<CodingReviewVariant, string> = {
+  review: "/api/v1/coding/review",
+  architecture: "/api/v1/coding/architecture",
+  refactor_plan: "/api/v1/coding/refactor-plan",
+  security_review: "/api/v1/coding/security-review",
+};
+
 export const codeFindingSchema = z.object({
   severity: z.string(),
   title: z.string(),
@@ -23,6 +39,7 @@ export type CodeFinding = z.infer<typeof codeFindingSchema>;
 export type CodeReviewResponse = z.infer<typeof codeReviewResponseSchema>;
 
 export interface SubmitCodeReviewInput {
+  variant?: CodingReviewVariant;
   repository?: string;
   language?: string;
   diff: string;
@@ -32,6 +49,7 @@ export interface SubmitCodeReviewInput {
 export async function submitCodeReview(
   input: SubmitCodeReviewInput
 ): Promise<CodeReviewResponse> {
-  const data = await postJson<unknown>("/api/v1/coding/review", input);
+  const { variant = "review", ...body } = input;
+  const data = await postJson<unknown>(codingReviewRoutes[variant], body);
   return parseApiResponse(codeReviewResponseSchema, data, "code review");
 }
