@@ -176,8 +176,12 @@ describe("PR3 tool pages", () => {
           detail: "Move review submission into a dedicated module.",
           file: "src/api/coding.ts",
           line: 34,
-          severity: "medium",
+          severity: "critical",
           recommendation: "Add a service wrapper around postJson.",
+          next_steps: [
+            "Move the postJson call behind a service interface.",
+            "Add a unit test covering the new service.",
+          ],
           owner: "platform",
         },
         "Document the API contract in the README.",
@@ -187,6 +191,7 @@ describe("PR3 tool pages", () => {
         {
           name: "Covers structured findings rendering",
           description: "Adds an RTL test that asserts the findings list renders severity badges.",
+          next_steps: "Run the new test in CI to confirm the suite passes.",
         },
       ],
       final_recommendation: "request_changes",
@@ -215,6 +220,20 @@ describe("PR3 tool pages", () => {
         "Adds an RTL test that asserts the findings list renders severity badges."
       )
     ).toBeInTheDocument();
+
+    expect(
+      screen.getByText("Move the postJson call behind a service interface.")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Add a unit test covering the new service.")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Run the new test in CI to confirm the suite passes.")
+    ).toBeInTheDocument();
+
+    const criticalBadge = screen.getByText("critical").closest(".status-badge");
+    expect(criticalBadge).not.toBeNull();
+    expect(criticalBadge).toHaveClass("status-badge-error");
   });
 
   it("renders empty coding suggestion states when the review returns no extras", async () => {

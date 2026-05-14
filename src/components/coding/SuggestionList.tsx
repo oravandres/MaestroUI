@@ -92,10 +92,7 @@ function SuggestionCard({
     readString(item, "rationale") ??
     readString(item, "reason") ??
     readString(item, "summary");
-  const recommendation =
-    readString(item, "recommendation") ??
-    readString(item, "suggestion") ??
-    readString(item, "next_step");
+  const recommendations = readRecommendations(item);
   const file = readString(item, "file") ?? readString(item, "path");
   const line = readNumber(item, "line") ?? readNumber(item, "line_number");
   const severity = readString(item, "severity") ?? readString(item, "priority") ?? readString(item, "impact");
@@ -104,7 +101,7 @@ function SuggestionCard({
   const hasKnownFields =
     title !== fallbackTitle ||
     Boolean(detail) ||
-    Boolean(recommendation) ||
+    recommendations.length > 0 ||
     Boolean(file) ||
     line !== undefined ||
     Boolean(severity) ||
@@ -127,7 +124,7 @@ function SuggestionCard({
         </p>
       ) : null}
       {detail ? <p>{detail}</p> : null}
-      {recommendation ? <p>{recommendation}</p> : null}
+      <RecommendationList recommendations={recommendations} />
       {extraEntries.length > 0 ? <MetadataList entries={extraEntries} /> : null}
       <details>
         <summary>Raw {itemLabel.toLowerCase()} payload</summary>
@@ -135,6 +132,42 @@ function SuggestionCard({
       </details>
     </article>
   );
+}
+
+function RecommendationList({ recommendations }: { recommendations: string[] }) {
+  if (recommendations.length === 0) return null;
+  if (recommendations.length === 1) return <p>{recommendations[0]}</p>;
+  return (
+    <ul className="recommendation-list">
+      {recommendations.map((entry, index) => (
+        <li key={`${index}-${entry}`}>{entry}</li>
+      ))}
+    </ul>
+  );
+}
+
+function readRecommendations(item: Record<string, unknown>): string[] {
+  const list: string[] = [];
+  pushIfNonEmpty(list, readString(item, "recommendation"));
+  pushIfNonEmpty(list, readString(item, "suggestion"));
+  pushIfNonEmpty(list, readString(item, "next_step"));
+
+  const plural = item.next_steps;
+  if (Array.isArray(plural)) {
+    for (const entry of plural) {
+      if (typeof entry === "string") {
+        pushIfNonEmpty(list, entry.trim() || undefined);
+      }
+    }
+  } else if (typeof plural === "string") {
+    pushIfNonEmpty(list, plural.trim() || undefined);
+  }
+
+  return list;
+}
+
+function pushIfNonEmpty(target: string[], value: string | undefined) {
+  if (value && !target.includes(value)) target.push(value);
 }
 
 function MetadataList({ entries }: { entries: Array<[string, string]> }) {

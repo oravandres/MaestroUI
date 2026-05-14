@@ -14,6 +14,14 @@ const statusTone: Record<string, string> = {
   evicting: "error",
   unknown: "muted",
   cold: "muted",
+  critical: "error",
+  high: "error",
+  major: "error",
+  medium: "warning",
+  moderate: "warning",
+  low: "muted",
+  nit: "muted",
+  info: "muted",
 };
 
 interface StatusBadgeProps {
