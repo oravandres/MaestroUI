@@ -33,12 +33,10 @@ jobs:
         run: npm test
 
       # `npm run build` is `tsc -b && vite build`, so this also typechecks
-      # both tsconfig projects (app + node). VITE_LOGOS_API_BASE_URL is
-      # required by vite.config.ts in production mode; using the cluster URL
-      # here matches what `container` will bake into the published image.
+      # both tsconfig projects (app + node). The production bundle defaults to
+      # same-origin `/api/v1/*` calls; nginx injects the Maestro API key at
+      # runtime, so CI deliberately does not bake a public API URL here.
       - name: Build
-        env:
-          VITE_LOGOS_API_BASE_URL: https://logos.mimi.local
         run: npm run build
 
   # Builds (and on `push: main`, publishes) the container image. Depends on
@@ -90,9 +88,7 @@ jobs:
           push: false
           load: true
           platforms: linux/amd64
-          build-args: |
-            VITE_LOGOS_API_BASE_URL=https://logos.mimi.local
-          tags: logos-ui:ci-smoke
+          tags: maestro-ui:ci-smoke
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -120,15 +116,15 @@ jobs:
           PY
           python3 /tmp/maestro-upstream.py &
           UPSTREAM_PID=$!
-          trap 'docker rm -f logos-ui-smoke >/dev/null 2>&1 || true; kill "$UPSTREAM_PID" >/dev/null 2>&1 || true' EXIT
+          trap 'docker rm -f maestro-ui-smoke >/dev/null 2>&1 || true; kill "$UPSTREAM_PID" >/dev/null 2>&1 || true' EXIT
 
           docker run --rm -d \
-            --name logos-ui-smoke \
+            --name maestro-ui-smoke \
             --add-host=host.docker.internal:host-gateway \
             -p 18080:8080 \
             -e MAESTRO_API_PROXY_TARGET=http://host.docker.internal:18081 \
             -e MAESTRO_API_KEY=ci-smoke-key \
-            logos-ui:ci-smoke
+            maestro-ui:ci-smoke
 
           # Wait for nginx to come up (worst case ~10s).
           for _ in 1 2 3 4 5 6 7 8 9 10; do
@@ -137,7 +133,7 @@ jobs:
           done
 
           echo "--- runs as non-root (UID 101) ---"
-          test "$(docker exec logos-ui-smoke id -u)" = "101"
+          test "$(docker exec maestro-ui-smoke id -u)" = "101"
 
           echo "--- index.html: cache + security headers ---"
           curl -sSI http://127.0.0.1:18080/ | tee /tmp/idx
@@ -147,7 +143,7 @@ jobs:
           grep -qi '^Referrer-Policy: no-referrer' /tmp/idx
 
           echo "--- SPA fallback resolves deep links ---"
-          curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:18080/quotes/abc | grep -qE '^200$'
+          curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:18080/coding | grep -qE '^200$'
 
           echo "--- hashed asset: immutable cache + security headers ---"
           ASSET=$(curl -s http://127.0.0.1:18080/ | grep -oE '/assets/index-[A-Za-z0-9_-]+\.js' | head -1)
@@ -169,7 +165,7 @@ jobs:
           test "$(sed -n '1p' /tmp/maestro-upstream.log)" = "/api/v1/health"
           test "$(sed -n '2p' /tmp/maestro-upstream.log)" = "Bearer ci-smoke-key"
 
-          docker rm -f logos-ui-smoke
+          docker rm -f maestro-ui-smoke
 
       # Multi-arch is mandatory: the MiMi cluster mixes amd64 nodes with
       # Raspberry Pi arm64 nodes. A single-platform tag would fail rollouts
@@ -183,8 +179,6 @@ jobs:
           context: .
           push: true
           platforms: linux/amd64,linux/arm64
-          build-args: |
-            VITE_LOGOS_API_BASE_URL=https://logos.mimi.local
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
