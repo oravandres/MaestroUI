@@ -2,9 +2,9 @@ import { useMutation } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { SearchCode } from "lucide-react";
 import { submitCodeReview } from "@/api/coding";
+import { SuggestionList } from "@/components/coding/SuggestionList";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
-import { JsonPreview } from "@/components/common/JsonPreview";
 import { StatusBadge } from "@/components/common/StatusBadge";
 
 export function CodingPage() {
@@ -93,15 +93,19 @@ export function CodingPage() {
           <section className="panel">
             <h2>Recommendation</h2>
             <p>{result.final_recommendation}</p>
-            <details>
-              <summary>Architecture suggestions</summary>
-              <JsonPreview value={result.architecture_suggestions} />
-            </details>
-            <details>
-              <summary>Test suggestions</summary>
-              <JsonPreview value={result.test_suggestions} />
-            </details>
           </section>
+          <SuggestionList
+            title="Architecture suggestions"
+            itemLabel="Architecture note"
+            items={result.architecture_suggestions}
+            emptyTitle="No architecture suggestions returned"
+          />
+          <SuggestionList
+            title="Test suggestions"
+            itemLabel="Test"
+            items={result.test_suggestions}
+            emptyTitle="No test suggestions returned"
+          />
         </div>
       ) : null}
     </div>

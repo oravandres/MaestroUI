@@ -164,6 +164,80 @@ describe("PR3 tool pages", () => {
     expect(screen.getByText("This API is not available yet.")).toBeInTheDocument();
   });
 
+  it("renders structured coding review architecture and test suggestions", async () => {
+    const user = userEvent.setup();
+    vi.mocked(submitCodeReview).mockResolvedValue({
+      id: "review-1",
+      status: "completed",
+      findings: [],
+      architecture_suggestions: [
+        {
+          title: "Extract review service",
+          detail: "Move review submission into a dedicated module.",
+          file: "src/api/coding.ts",
+          line: 34,
+          severity: "medium",
+          recommendation: "Add a service wrapper around postJson.",
+          owner: "platform",
+        },
+        "Document the API contract in the README.",
+        { nested: { still: ["unknown"] } },
+      ],
+      test_suggestions: [
+        {
+          name: "Covers structured findings rendering",
+          description: "Adds an RTL test that asserts the findings list renders severity badges.",
+        },
+      ],
+      final_recommendation: "request_changes",
+      created_at: null,
+    });
+
+    renderWithProviders(<CodingPage />, { route: "/coding" });
+    await user.type(screen.getByLabelText(/diff or patch/i), "diff --git a/file.ts b/file.ts");
+    await user.click(screen.getByRole("button", { name: /review/i }));
+
+    expect(await screen.findByText("request_changes")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Architecture suggestions" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Extract review service")).toBeInTheDocument();
+    expect(screen.getByText("src/api/coding.ts:34")).toBeInTheDocument();
+    expect(screen.getByText("Add a service wrapper around postJson.")).toBeInTheDocument();
+    expect(screen.getByText("Document the API contract in the README.")).toBeInTheDocument();
+    expect(screen.getByText("Architecture note 3 raw payload")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Test suggestions" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Covers structured findings rendering")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Adds an RTL test that asserts the findings list renders severity badges."
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("renders empty coding suggestion states when the review returns no extras", async () => {
+    const user = userEvent.setup();
+    vi.mocked(submitCodeReview).mockResolvedValue({
+      id: "review-2",
+      status: "completed",
+      findings: [],
+      architecture_suggestions: [],
+      test_suggestions: [],
+      final_recommendation: "approve",
+      created_at: null,
+    });
+
+    renderWithProviders(<CodingPage />, { route: "/coding" });
+    await user.type(screen.getByLabelText(/diff or patch/i), "diff --git a/file.ts b/file.ts");
+    await user.click(screen.getByRole("button", { name: /review/i }));
+
+    expect(await screen.findByText("approve")).toBeInTheDocument();
+    expect(screen.getByText("No architecture suggestions returned")).toBeInTheDocument();
+    expect(screen.getByText("No test suggestions returned")).toBeInTheDocument();
+  });
+
   it("shows media model availability and generation failure state", async () => {
     const user = userEvent.setup();
     renderWithProviders(<MediaPage />, { route: "/media" });
