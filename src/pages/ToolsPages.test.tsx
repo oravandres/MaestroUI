@@ -21,6 +21,7 @@ import { SettingsPage } from "@/pages/SettingsPage";
 import { renderWithProviders } from "@/test/render";
 
 vi.mock("@/api/coding", () => ({
+  codingReviewVariants: ["review", "architecture", "refactor_plan", "security_review"],
   submitCodeReview: vi.fn(),
 }));
 
@@ -57,6 +58,7 @@ vi.mock("@/api/systems", () => ({
 
 describe("PR3 tool pages", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     vi.mocked(submitCodeReview).mockRejectedValue(
       new ApiError("not found", 404, { error: { message: "not found" } })
     );
@@ -155,19 +157,70 @@ describe("PR3 tool pages", () => {
     const user = userEvent.setup();
     renderWithProviders(<CodingPage />, { route: "/coding" });
 
-    expect(screen.getByRole("button", { name: /review/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /run review/i })).toBeDisabled();
 
     await user.type(screen.getByLabelText(/diff or patch/i), "diff --git a/file.ts b/file.ts");
-    await user.click(screen.getByRole("button", { name: /review/i }));
+    await user.click(screen.getByRole("button", { name: /run review/i }));
 
     expect(vi.mocked(submitCodeReview).mock.calls[0]?.[0]).toEqual({
       diff: "diff --git a/file.ts b/file.ts",
       instructions: "Correctness, maintainability, accessibility, and tests.",
       repository: undefined,
+      variant: "review",
     });
     expect(await screen.findByText("Review failed")).toBeInTheDocument();
     expect(screen.getByText("This API is not available yet.")).toBeInTheDocument();
   });
+
+  it.each([
+    [
+      "Architecture",
+      "Analyze architecture",
+      "architecture",
+      "Architecture boundaries, coupling, data flow, scalability, and operational risk.",
+    ],
+    [
+      "Refactor plan",
+      "Plan refactor",
+      "refactor_plan",
+      "Small safe refactor steps, compatibility risks, test strategy, and rollout order.",
+    ],
+    [
+      "Security",
+      "Review security",
+      "security_review",
+      "Authentication, authorization, input validation, secrets handling, XSS, and data exposure.",
+    ],
+  ] as const)(
+    "submits the %s coding variant",
+    async (variantLabel, submitLabel, variant, expectedInstructions) => {
+      const user = userEvent.setup();
+      vi.mocked(submitCodeReview).mockResolvedValue({
+        summary: "Review completed.",
+        findings: [],
+        architecture_notes: [],
+        tests_to_add: [],
+        final_recommendation: "approve",
+      });
+
+      renderWithProviders(<CodingPage />, { route: "/coding" });
+      await user.click(screen.getByRole("button", { name: variantLabel }));
+      await user.type(screen.getByLabelText(/diff or patch/i), "diff --git a/file.ts b/file.ts");
+      await user.click(screen.getByRole("button", { name: submitLabel }));
+
+      expect(screen.getByRole("button", { name: variantLabel })).toHaveAttribute(
+        "aria-pressed",
+        "true"
+      );
+      expect(vi.mocked(submitCodeReview).mock.calls[0]?.[0]).toEqual({
+        diff: "diff --git a/file.ts b/file.ts",
+        instructions: expectedInstructions,
+        repository: undefined,
+        variant,
+      });
+      expect(await screen.findByText("approve")).toBeInTheDocument();
+    }
+  );
 
   it("renders structured coding review architecture and test suggestions", async () => {
     const user = userEvent.setup();
@@ -212,7 +265,7 @@ describe("PR3 tool pages", () => {
 
     renderWithProviders(<CodingPage />, { route: "/coding" });
     await user.type(screen.getByLabelText(/diff or patch/i), "diff --git a/file.ts b/file.ts");
-    await user.click(screen.getByRole("button", { name: /review/i }));
+    await user.click(screen.getByRole("button", { name: /run review/i }));
 
     expect(await screen.findByText("request_changes")).toBeInTheDocument();
     expect(screen.getByText("Review found contract drift.")).toBeInTheDocument();
@@ -263,7 +316,7 @@ describe("PR3 tool pages", () => {
 
     renderWithProviders(<CodingPage />, { route: "/coding" });
     await user.type(screen.getByLabelText(/diff or patch/i), "diff --git a/file.ts b/file.ts");
-    await user.click(screen.getByRole("button", { name: /review/i }));
+    await user.click(screen.getByRole("button", { name: /run review/i }));
 
     expect(await screen.findByText("approve")).toBeInTheDocument();
     expect(screen.getByText("No issues found.")).toBeInTheDocument();

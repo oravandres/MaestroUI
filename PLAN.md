@@ -696,22 +696,22 @@ Tasks:
 
 - [x] Review submission form (repo, language, code/diff, instructions).
 - [x] Structured findings display with severity badges.
-- [ ] Architecture notes and test suggestions.
+- [x] Architecture notes and test suggestions.
+- [x] Routed review variants for architecture, refactor plan, and security review.
 - [x] Final recommendation badge.
 
-Architecture suggestions and test suggestions currently render as raw JSON
-inside `<details>` disclosures. The next slice replaces those payloads with
-structured cards that surface a title, detail, optional file/line/severity,
-and a graceful raw-payload fallback when Maestro returns an unknown shape —
-mirroring the RAG evidence/citation card pattern. Maestro's broader review
-variants (architecture-only, refactor-plan, security review) remain deferred
-until the backend exposes routed endpoints with stable response shapes.
+Architecture notes and test suggestions render as structured cards that
+surface a title, detail, optional file/line/severity, and a graceful
+raw-payload fallback when Maestro returns an unknown shape. The coding page
+also exposes Maestro's routed variants for review, architecture-only analysis,
+refactor planning, and security review while preserving the same backend
+request body contract.
 
 Acceptance criteria:
 
-- [ ] Can submit code for review.
-- [ ] Findings display with severity, path, line, explanation, recommendation.
-- [ ] Architecture and security reviews work.
+- [x] Can submit code for review.
+- [x] Findings display with severity, path, line, explanation, recommendation.
+- [x] Architecture, refactor-plan, and security reviews work.
 
 ### Phase 9 — Media Studio
 

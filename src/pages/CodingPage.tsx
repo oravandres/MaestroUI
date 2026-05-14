@@ -1,24 +1,68 @@
 import { useMutation } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { SearchCode } from "lucide-react";
-import { submitCodeReview } from "@/api/coding";
+import {
+  type CodingReviewVariant,
+  codingReviewVariants,
+  submitCodeReview,
+} from "@/api/coding";
 import { SuggestionList } from "@/components/coding/SuggestionList";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { StatusBadge } from "@/components/common/StatusBadge";
 
+interface CodingVariantOption {
+  label: string;
+  submitLabel: string;
+  defaultInstructions: string;
+}
+
+const variantOptions: Record<CodingReviewVariant, CodingVariantOption> = {
+  review: {
+    label: "Review",
+    submitLabel: "Run review",
+    defaultInstructions: "Correctness, maintainability, accessibility, and tests.",
+  },
+  architecture: {
+    label: "Architecture",
+    submitLabel: "Analyze architecture",
+    defaultInstructions: "Architecture boundaries, coupling, data flow, scalability, and operational risk.",
+  },
+  refactor_plan: {
+    label: "Refactor plan",
+    submitLabel: "Plan refactor",
+    defaultInstructions: "Small safe refactor steps, compatibility risks, test strategy, and rollout order.",
+  },
+  security_review: {
+    label: "Security",
+    submitLabel: "Review security",
+    defaultInstructions: "Authentication, authorization, input validation, secrets handling, XSS, and data exposure.",
+  },
+};
+
 export function CodingPage() {
+  const [variant, setVariant] = useState<CodingReviewVariant>("review");
   const [repository, setRepository] = useState("");
   const [diff, setDiff] = useState("");
-  const [instructions, setInstructions] = useState(
-    "Correctness, maintainability, accessibility, and tests."
-  );
+  const [instructions, setInstructions] = useState(variantOptions.review.defaultInstructions);
   const reviewMutation = useMutation({ mutationFn: submitCodeReview });
+
+  function changeVariant(nextVariant: CodingReviewVariant) {
+    setInstructions((current) => {
+      const currentDefault = variantOptions[variant].defaultInstructions;
+      if (current.trim() === "" || current === currentDefault) {
+        return variantOptions[nextVariant].defaultInstructions;
+      }
+      return current;
+    });
+    setVariant(nextVariant);
+  }
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (diff.trim() === "") return;
     reviewMutation.mutate({
+      variant,
       repository: repository.trim() || undefined,
       diff: diff.trim(),
       instructions: instructions.trim() || undefined,
@@ -34,6 +78,20 @@ export function CodingPage() {
         <p className="page-subtitle">Structured findings, architecture notes, test suggestions, and recommendation state.</p>
       </header>
 
+      <div className="tabs" aria-label="Coding review type">
+        {codingReviewVariants.map((item) => (
+          <button
+            className={`tab ${variant === item ? "active" : ""}`}
+            type="button"
+            aria-pressed={variant === item}
+            key={item}
+            onClick={() => changeVariant(item)}
+          >
+            {variantOptions[item].label}
+          </button>
+        ))}
+      </div>
+
       <section className="panel">
         <form className="form-grid tool-form" onSubmit={onSubmit}>
           <label className="field">
@@ -42,7 +100,8 @@ export function CodingPage() {
           </label>
           <label className="field field-wide">
             <span>Review instructions</span>
-            <input
+            <textarea
+              rows={2}
               value={instructions}
               onChange={(event) => setInstructions(event.target.value)}
             />
@@ -57,11 +116,14 @@ export function CodingPage() {
             disabled={diff.trim() === "" || reviewMutation.isPending}
           >
             <SearchCode aria-hidden="true" size={16} />
-            Review
+            {variantOptions[variant].submitLabel}
           </button>
         </form>
         {reviewMutation.isError ? (
-          <ErrorState error={reviewMutation.error} title="Review failed" />
+          <ErrorState
+            error={reviewMutation.error}
+            title={`${variantOptions[variant].label} failed`}
+          />
         ) : null}
       </section>
 

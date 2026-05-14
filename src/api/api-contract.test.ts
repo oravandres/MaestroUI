@@ -136,6 +136,39 @@ describe("API route contracts", () => {
   });
 
   it.each([
+    ["architecture", "/api/v1/coding/architecture"],
+    ["refactor_plan", "/api/v1/coding/refactor-plan"],
+    ["security_review", "/api/v1/coding/security-review"],
+  ] as const)("routes coding %s requests to the matching backend endpoint", async (variant, path) => {
+    const fetchMock = stubFetch({
+      summary: "Review completed.",
+      findings: [],
+      architecture_notes: [],
+      tests_to_add: [],
+      final_recommendation: "approve",
+    });
+
+    await submitCodeReview({
+      variant,
+      repository: "oravandres/MaestroUI",
+      diff: "diff --git a/file.ts b/file.ts",
+      instructions: "Review correctness.",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      path,
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          repository: "oravandres/MaestroUI",
+          diff: "diff --git a/file.ts b/file.ts",
+          instructions: "Review correctness.",
+        }),
+      })
+    );
+  });
+
+  it.each([
     [
       "image",
       "/api/v1/media/image",
