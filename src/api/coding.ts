@@ -3,23 +3,20 @@ import { postJson } from "@/api/client";
 import { jsonArraySchema, parseApiResponse } from "@/api/parse";
 
 export const codeFindingSchema = z.object({
-  id: z.string(),
   severity: z.string(),
   title: z.string(),
-  detail: z.string(),
-  file: z.string().optional().nullable(),
+  explanation: z.string(),
+  path: z.string().optional().nullable(),
   line: z.number().int().positive().optional().nullable(),
   recommendation: z.string().optional().nullable(),
 });
 
 const codeReviewResponseSchema = z.object({
-  id: z.string(),
-  status: z.string(),
+  summary: z.string(),
   findings: z.array(codeFindingSchema),
-  architecture_suggestions: jsonArraySchema,
-  test_suggestions: jsonArraySchema,
+  architecture_notes: jsonArraySchema,
+  tests_to_add: jsonArraySchema,
   final_recommendation: z.string(),
-  created_at: z.string().optional().nullable(),
 });
 
 export type CodeFinding = z.infer<typeof codeFindingSchema>;
@@ -27,8 +24,9 @@ export type CodeReviewResponse = z.infer<typeof codeReviewResponseSchema>;
 
 export interface SubmitCodeReviewInput {
   repository?: string;
+  language?: string;
   diff: string;
-  goals: string;
+  instructions?: string;
 }
 
 export async function submitCodeReview(

@@ -160,8 +160,115 @@ describe("PR3 tool pages", () => {
     await user.type(screen.getByLabelText(/diff or patch/i), "diff --git a/file.ts b/file.ts");
     await user.click(screen.getByRole("button", { name: /review/i }));
 
+    expect(vi.mocked(submitCodeReview).mock.calls[0]?.[0]).toEqual({
+      diff: "diff --git a/file.ts b/file.ts",
+      instructions: "Correctness, maintainability, accessibility, and tests.",
+      repository: undefined,
+    });
     expect(await screen.findByText("Review failed")).toBeInTheDocument();
     expect(screen.getByText("This API is not available yet.")).toBeInTheDocument();
+  });
+
+  it("renders structured coding review architecture and test suggestions", async () => {
+    const user = userEvent.setup();
+    vi.mocked(submitCodeReview).mockResolvedValue({
+      summary: "Review found contract drift.",
+      findings: [
+        {
+          severity: "high",
+          title: "Request payload does not match Maestro",
+          explanation: "The UI must send instructions, not goals.",
+          path: "src/api/coding.ts",
+          line: 34,
+          recommendation: "Rename the field before calling postJson.",
+        },
+      ],
+      architecture_notes: [
+        {
+          title: "Extract review service",
+          detail: "Move review submission into a dedicated module.",
+          path: "src/api/coding.ts",
+          line: 40,
+          severity: "critical",
+          recommendation: "Add a service wrapper around postJson.",
+          next_steps: [
+            "Move the postJson call behind a service interface.",
+            "Add a unit test covering the new service.",
+          ],
+          owner: "platform",
+        },
+        "Document the API contract in the README.",
+        { nested: { still: ["unknown"] } },
+      ],
+      tests_to_add: [
+        {
+          name: "Covers structured findings rendering",
+          description: "Adds an RTL test that asserts the findings list renders severity badges.",
+          next_steps: "Run the new test in CI to confirm the suite passes.",
+        },
+      ],
+      final_recommendation: "request_changes",
+    });
+
+    renderWithProviders(<CodingPage />, { route: "/coding" });
+    await user.type(screen.getByLabelText(/diff or patch/i), "diff --git a/file.ts b/file.ts");
+    await user.click(screen.getByRole("button", { name: /review/i }));
+
+    expect(await screen.findByText("request_changes")).toBeInTheDocument();
+    expect(screen.getByText("Review found contract drift.")).toBeInTheDocument();
+    expect(screen.getByText("Request payload does not match Maestro")).toBeInTheDocument();
+    expect(screen.getByText("The UI must send instructions, not goals.")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Architecture notes" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Extract review service")).toBeInTheDocument();
+    expect(screen.getByText("src/api/coding.ts:40")).toBeInTheDocument();
+    expect(screen.getByText("Add a service wrapper around postJson.")).toBeInTheDocument();
+    expect(screen.getByText("Document the API contract in the README.")).toBeInTheDocument();
+    expect(screen.getByText("Architecture note 3 raw payload")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Test suggestions" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Covers structured findings rendering")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Adds an RTL test that asserts the findings list renders severity badges."
+      )
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByText("Move the postJson call behind a service interface.")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Add a unit test covering the new service.")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Run the new test in CI to confirm the suite passes.")
+    ).toBeInTheDocument();
+
+    const criticalBadge = screen.getByText("critical").closest(".status-badge");
+    expect(criticalBadge).not.toBeNull();
+    expect(criticalBadge).toHaveClass("status-badge-error");
+  });
+
+  it("renders empty coding suggestion states when the review returns no extras", async () => {
+    const user = userEvent.setup();
+    vi.mocked(submitCodeReview).mockResolvedValue({
+      summary: "No issues found.",
+      findings: [],
+      architecture_notes: [],
+      tests_to_add: [],
+      final_recommendation: "approve",
+    });
+
+    renderWithProviders(<CodingPage />, { route: "/coding" });
+    await user.type(screen.getByLabelText(/diff or patch/i), "diff --git a/file.ts b/file.ts");
+    await user.click(screen.getByRole("button", { name: /review/i }));
+
+    expect(await screen.findByText("approve")).toBeInTheDocument();
+    expect(screen.getByText("No issues found.")).toBeInTheDocument();
+    expect(screen.getByText("No architecture notes returned")).toBeInTheDocument();
+    expect(screen.getByText("No test suggestions returned")).toBeInTheDocument();
   });
 
   it("shows media model availability and generation failure state", async () => {
