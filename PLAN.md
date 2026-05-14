@@ -6,10 +6,11 @@
 > **Compute:** Darkbase RTX 5090 (fast) + Sparky DGX Spark (premium)
 > **Priority:** Main features first. Build a usable vertical slice before advanced polish.
 > **Status:** Foundation, runtime proxy/BFF hardening, API contract alignment,
-> Phase 4 chat UX, Phase 5 core Jobs & Queue UX, and the safe Phase 6
-> Knowledge Management slice are merged. Next focus: Phase 7 RAG Studio —
-> structured run detail with confidence, evidence, citations, retrieval rounds,
-> and verification display where the current payload exposes that data.
+> Phase 4 chat UX, Phase 5 core Jobs & Queue UX, the safe Phase 6 Knowledge
+> Management slice, and the Phase 7 RAG Studio run detail (confidence,
+> evidence, citations, retrieval rounds, and verification display) are merged.
+> Next focus: Phase 8 Coding Review — structured architecture notes and
+> test-suggestion rendering on top of the existing findings list.
 
 ---
 
@@ -556,8 +557,8 @@ handle unavailable endpoints gracefully until those backend phases ship.
 | ~~Phase 4~~ | Chat with streaming | ✅ Done |
 | Phase 5 | Jobs & Queue | Core UX done; worker visibility deferred until backend contract exists |
 | Phase 6 | Knowledge Management | Source/document management and detail views done; indexing deferred until backend contract exists |
-| Phase 7 | RAG Studio | Current focus: structured run detail, confidence, citations, and verification display |
-| Phase 8 | Coding Review | Thin slice done; review variants planned |
+| Phase 7 | RAG Studio | Structured run detail, confidence, citations, and verification display done; deeper variants follow backend evolution |
+| Phase 8 | Coding Review | Findings list and recommendation done; current focus: structured architecture notes and test-suggestion rendering |
 | Phase 9 | Media Studio (images, video, audio) | Thin slice done; deeper TTS/ASR asset workflows planned |
 | Phase 10 | Reasoning tools (analyze, compare) | Thin slice done; scoring detail planned |
 | Phase 11 | Settings & Monitoring | Thin slice done; validation/audit/metrics detail planned |
@@ -672,16 +673,22 @@ Acceptance criteria:
 Tasks:
 
 - [x] RAG run list with status and confidence.
-- [ ] Run detail: question, retrieval plan, rounds, evidence, answer, citations.
-- [ ] Verification results display (supported, unsupported, contradictions).
-- [ ] Confidence badge component.
+- [x] Run detail: question, retrieval plan, rounds, evidence, answer, citations.
+- [x] Verification results display (supported, unsupported, contradictions).
+- [x] Confidence badge component.
 - [x] Trigger new agentic RAG run from UI.
+
+The run detail tolerates partial payloads: each section falls back to a raw
+JSON details disclosure when Maestro returns unknown shapes, and verification
+items are collected from `verification_status`, `supported_claims`,
+`unsupported_claims`, and `contradictions` fields wherever they appear inside
+evidence, citations, or retrieval rounds.
 
 Acceptance criteria:
 
-- [ ] RAG runs display with full detail.
-- [ ] Citations link back to source documents.
-- [ ] Unsupported claims and contradictions are clearly flagged.
+- [x] RAG runs display with full detail.
+- [x] Citations link back to source documents.
+- [x] Unsupported claims and contradictions are clearly flagged.
 
 ### Phase 8 — Coding Review
 
@@ -691,6 +698,14 @@ Tasks:
 - [x] Structured findings display with severity badges.
 - [ ] Architecture notes and test suggestions.
 - [x] Final recommendation badge.
+
+Architecture suggestions and test suggestions currently render as raw JSON
+inside `<details>` disclosures. The next slice replaces those payloads with
+structured cards that surface a title, detail, optional file/line/severity,
+and a graceful raw-payload fallback when Maestro returns an unknown shape —
+mirroring the RAG evidence/citation card pattern. Maestro's broader review
+variants (architecture-only, refactor-plan, security review) remain deferred
+until the backend exposes routed endpoints with stable response shapes.
 
 Acceptance criteria:
 
