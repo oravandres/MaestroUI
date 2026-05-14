@@ -160,6 +160,11 @@ describe("PR3 tool pages", () => {
     await user.type(screen.getByLabelText(/diff or patch/i), "diff --git a/file.ts b/file.ts");
     await user.click(screen.getByRole("button", { name: /review/i }));
 
+    expect(vi.mocked(submitCodeReview).mock.calls[0]?.[0]).toEqual({
+      diff: "diff --git a/file.ts b/file.ts",
+      instructions: "Correctness, maintainability, accessibility, and tests.",
+      repository: undefined,
+    });
     expect(await screen.findByText("Review failed")).toBeInTheDocument();
     expect(screen.getByText("This API is not available yet.")).toBeInTheDocument();
   });
@@ -167,15 +172,23 @@ describe("PR3 tool pages", () => {
   it("renders structured coding review architecture and test suggestions", async () => {
     const user = userEvent.setup();
     vi.mocked(submitCodeReview).mockResolvedValue({
-      id: "review-1",
-      status: "completed",
-      findings: [],
-      architecture_suggestions: [
+      summary: "Review found contract drift.",
+      findings: [
+        {
+          severity: "high",
+          title: "Request payload does not match Maestro",
+          explanation: "The UI must send instructions, not goals.",
+          path: "src/api/coding.ts",
+          line: 34,
+          recommendation: "Rename the field before calling postJson.",
+        },
+      ],
+      architecture_notes: [
         {
           title: "Extract review service",
           detail: "Move review submission into a dedicated module.",
-          file: "src/api/coding.ts",
-          line: 34,
+          path: "src/api/coding.ts",
+          line: 40,
           severity: "critical",
           recommendation: "Add a service wrapper around postJson.",
           next_steps: [
@@ -187,7 +200,7 @@ describe("PR3 tool pages", () => {
         "Document the API contract in the README.",
         { nested: { still: ["unknown"] } },
       ],
-      test_suggestions: [
+      tests_to_add: [
         {
           name: "Covers structured findings rendering",
           description: "Adds an RTL test that asserts the findings list renders severity badges.",
@@ -195,7 +208,6 @@ describe("PR3 tool pages", () => {
         },
       ],
       final_recommendation: "request_changes",
-      created_at: null,
     });
 
     renderWithProviders(<CodingPage />, { route: "/coding" });
@@ -203,11 +215,14 @@ describe("PR3 tool pages", () => {
     await user.click(screen.getByRole("button", { name: /review/i }));
 
     expect(await screen.findByText("request_changes")).toBeInTheDocument();
+    expect(screen.getByText("Review found contract drift.")).toBeInTheDocument();
+    expect(screen.getByText("Request payload does not match Maestro")).toBeInTheDocument();
+    expect(screen.getByText("The UI must send instructions, not goals.")).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Architecture suggestions" })
+      screen.getByRole("heading", { name: "Architecture notes" })
     ).toBeInTheDocument();
     expect(screen.getByText("Extract review service")).toBeInTheDocument();
-    expect(screen.getByText("src/api/coding.ts:34")).toBeInTheDocument();
+    expect(screen.getByText("src/api/coding.ts:40")).toBeInTheDocument();
     expect(screen.getByText("Add a service wrapper around postJson.")).toBeInTheDocument();
     expect(screen.getByText("Document the API contract in the README.")).toBeInTheDocument();
     expect(screen.getByText("Architecture note 3 raw payload")).toBeInTheDocument();
@@ -239,13 +254,11 @@ describe("PR3 tool pages", () => {
   it("renders empty coding suggestion states when the review returns no extras", async () => {
     const user = userEvent.setup();
     vi.mocked(submitCodeReview).mockResolvedValue({
-      id: "review-2",
-      status: "completed",
+      summary: "No issues found.",
       findings: [],
-      architecture_suggestions: [],
-      test_suggestions: [],
+      architecture_notes: [],
+      tests_to_add: [],
       final_recommendation: "approve",
-      created_at: null,
     });
 
     renderWithProviders(<CodingPage />, { route: "/coding" });
@@ -253,7 +266,8 @@ describe("PR3 tool pages", () => {
     await user.click(screen.getByRole("button", { name: /review/i }));
 
     expect(await screen.findByText("approve")).toBeInTheDocument();
-    expect(screen.getByText("No architecture suggestions returned")).toBeInTheDocument();
+    expect(screen.getByText("No issues found.")).toBeInTheDocument();
+    expect(screen.getByText("No architecture notes returned")).toBeInTheDocument();
     expect(screen.getByText("No test suggestions returned")).toBeInTheDocument();
   });
 

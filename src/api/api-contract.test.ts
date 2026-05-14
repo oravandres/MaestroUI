@@ -108,24 +108,30 @@ describe("API route contracts", () => {
 
   it("posts coding review requests to the singular review route", async () => {
     const fetchMock = stubFetch({
-      id: "review-1",
-      status: "completed",
+      summary: "Review completed.",
       findings: [],
-      architecture_suggestions: [],
-      test_suggestions: [],
+      architecture_notes: [],
+      tests_to_add: [],
       final_recommendation: "approve",
-      created_at: "2026-05-11T08:00:00Z",
     });
 
-    await submitCodeReview({
+    const result = await submitCodeReview({
       repository: "oravandres/MaestroUI",
       diff: "diff --git a/file.ts b/file.ts",
-      goals: "Review correctness.",
+      instructions: "Review correctness.",
     });
 
+    expect(result.summary).toBe("Review completed.");
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/coding/review",
-      expect.objectContaining({ method: "POST" })
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          repository: "oravandres/MaestroUI",
+          diff: "diff --git a/file.ts b/file.ts",
+          instructions: "Review correctness.",
+        }),
+      })
     );
   });
 
