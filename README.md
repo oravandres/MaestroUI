@@ -26,6 +26,19 @@ By default, browser requests use relative `/api/v1/*` URLs. In development,
 Vite proxies those requests to Maestro and injects `MAESTRO_API_KEY` when it is
 present. In production, nginx provides the same BFF-style proxy behavior.
 
+## Container
+
+Merges to `main` publish a multi-arch image to:
+
+```text
+ghcr.io/oravandres/maestroui/maestro-ui:<short-commit-sha>
+```
+
+The runtime image listens on port `8080`, serves the SPA, and proxies
+same-origin `/api/v1/*` requests to `MAESTRO_API_PROXY_TARGET` with
+`Authorization: Bearer <MAESTRO_API_KEY>`. MiMi deployments should pin the
+published multi-arch digest rather than a mutable tag.
+
 ## Design
 
 - **Dark theme** with glassmorphism
