@@ -802,7 +802,7 @@ describe("PR3 tool pages", () => {
     expect(screen.getByText("Comparison detail 2 raw payload")).toBeInTheDocument();
   });
 
-  it("masks settings secrets and validates edited JSON", async () => {
+  it("masks settings secrets and validates edited JSON live", async () => {
     const user = userEvent.setup();
     renderWithProviders(<SettingsPage />, { route: "/settings" });
 
@@ -815,9 +815,46 @@ describe("PR3 tool pages", () => {
     await user.click(screen.getByRole("button", { name: /ui.theme/i }));
     await user.clear(screen.getByLabelText(/json value/i));
     await user.type(screen.getByLabelText(/json value/i), "not-json");
-    await user.click(screen.getByRole("button", { name: /save/i }));
 
     expect(await screen.findByText("Value must be valid JSON.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /save/i })).toBeDisabled();
+
+    await user.clear(screen.getByLabelText(/json value/i));
+    await user.type(screen.getByLabelText(/json value/i), '"light"');
+
+    expect(
+      await screen.findByText("JSON parses cleanly — ready to save.")
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /save/i })).toBeEnabled();
+  });
+
+  it("requires audit confirmation before saving a secret setting", async () => {
+    const user = userEvent.setup();
+    vi.mocked(saveSetting).mockResolvedValue({ key: "api.token", value: "rotated-token" });
+    renderWithProviders(<SettingsPage />, { route: "/settings" });
+
+    await screen.findByText("********");
+    await user.click(screen.getByRole("button", { name: /api.token/i }));
+    await user.type(screen.getByLabelText(/json value/i), '"rotated-token"');
+
+    expect(
+      await screen.findByText("JSON parses cleanly — ready to save.")
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /save/i })).toBeDisabled();
+
+    const auditCheckbox = screen.getByRole("checkbox", {
+      name: /sensitive setting will be recorded in the audit log/i,
+    });
+    await user.click(auditCheckbox);
+
+    expect(screen.getByRole("button", { name: /save/i })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: /save/i }));
+
+    await waitFor(() => {
+      expect(vi.mocked(saveSetting).mock.calls[0]?.[0]).toBe("api.token");
+      expect(vi.mocked(saveSetting).mock.calls[0]?.[1]).toBe("rotated-token");
+    });
+    expect(await screen.findByText("Setting saved.")).toBeInTheDocument();
   });
 
   it("filters monitoring events and renders empty states", async () => {
