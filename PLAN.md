@@ -17,9 +17,13 @@
 > structured Analyze results with key-point and risk cards), and the
 > Phase 11 Settings & Monitoring slice (live JSON validation with audit
 > confirmation for sensitive settings, monitoring source filter, and
-> latency p95 tile) are merged. Next focus: Polish & Performance —
-> route-level lazy loading with Suspense fallback and vendor `manualChunks`
-> splitting so the initial bundle drops below the 500 kB warning threshold.
+> latency p95 tile), and the Polish & Performance batch (route-level
+> lazy loading with Suspense fallback and vendor `manualChunks` shrinking
+> the app shell from 491 kB to a 21 kB shell plus stable vendor chunks)
+> are merged. Next focus: Reliability & UX — a top-level error boundary
+> that recovers from chunk-load failures and component render errors, and
+> prefetching the next page's lazy chunk when the user hovers a sidebar
+> link so cold-route navigation feels instant.
 
 ---
 
@@ -571,7 +575,8 @@ handle unavailable endpoints gracefully until those backend phases ship.
 | Phase 9 | Media Studio (images, video, audio) | Image/video generation, audio TTS, ASR upload, dedicated TTS/ASR forms with voice/style/language, inline job status polling, and asset gallery preview thumbnails done |
 | Phase 10 | Reasoning tools (analyze, compare) | Structured Compare results (score matrix, weighted totals, recommendation) and structured Analyze results (key points and risks) done |
 | Phase 11 | Settings & Monitoring | Live JSON validation with audit confirmation for sensitive settings, monitoring event log source filter, and latency p95 tile done |
-| Polish & Performance | Bundle hygiene, code-split, and developer experience | Current focus: route-level lazy loading with Suspense fallback, then `manualChunks` for vendor splitting to drop the initial bundle below 500 kB |
+| Polish & Performance | Bundle hygiene, code-split, and developer experience | Route-level lazy loading and vendor `manualChunks` done; the app shell is 21 kB and each lazy page chunk is fetched on first navigation only |
+| Reliability & UX | Error recovery and perceived performance | Current focus: top-level error boundary that recovers from lazy chunk failures and render errors, plus prefetching the next page's chunk on sidebar hover/focus |
 
 ### Phase 2 — Navigation, Layout, Dashboard
 
@@ -804,17 +809,34 @@ Acceptance criteria:
 
 Tasks:
 
-- [ ] Route-level lazy loading with a Suspense fallback so the initial
+- [x] Route-level lazy loading with a Suspense fallback so the initial
       bundle only contains the dashboard and shared shell.
-- [ ] Vite `manualChunks` for vendor splitting (react, react-router,
+- [x] Vite `manualChunks` for vendor splitting (react, react-router,
       tanstack-query, zod, lucide) so caching survives most product
       changes.
 
 Acceptance criteria:
 
-- [ ] Initial bundle drops below the 500 kB pre-gzip warning threshold.
-- [ ] Each non-dashboard route is fetched on first navigation only.
-- [ ] Vendor chunks change only when a dependency upgrade ships.
+- [x] Initial bundle drops below the 500 kB pre-gzip warning threshold.
+- [x] Each non-dashboard route is fetched on first navigation only.
+- [x] Vendor chunks change only when a dependency upgrade ships.
+
+### Reliability & UX — Error recovery and perceived performance
+
+Tasks:
+
+- [ ] Top-level error boundary that catches lazy chunk load failures and
+      component render errors, with Retry (reset boundary state) and
+      Reload (full page reload) actions.
+- [ ] Prefetch the lazy page chunk associated with a sidebar nav link
+      on `pointerenter`/`focus` so cold-route navigation feels instant.
+
+Acceptance criteria:
+
+- [ ] A broken lazy chunk does not leave the app blank — the user sees
+      a friendly fallback with retry actions instead.
+- [ ] Hovering or focusing a sidebar link starts loading that route's
+      chunk before the click resolves.
 
 ---
 
