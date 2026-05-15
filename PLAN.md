@@ -8,11 +8,13 @@
 > **Status:** Foundation, runtime proxy/BFF hardening, API contract alignment,
 > Phase 4 chat UX, Phase 5 core Jobs & Queue UX, the safe Phase 6 Knowledge
 > Management slice, the Phase 7 RAG Studio run detail (confidence, evidence,
-> citations, retrieval rounds, and verification display), and the Phase 8
-> Coding Review surface (structured findings, architecture notes, test
-> suggestions, and routed review variants) are merged. Next focus: Phase 9
-> Media Studio — dedicated TTS/ASR forms with voice/style/language inputs,
-> inline job status while generating, and asset gallery preview thumbnails.
+> citations, retrieval rounds, and verification display), the Phase 8 Coding
+> Review surface (structured findings, architecture notes, test suggestions,
+> and routed review variants), and the Phase 9 Media Studio slice (dedicated
+> TTS/ASR forms with voice/style/language, inline job status polling, and
+> asset gallery preview thumbnails) are merged. Next focus: Phase 10
+> Reasoning — structured Compare results (score matrix, weighted totals,
+> recommendation) and structured Analyze results (key points and risks).
 
 ---
 
@@ -561,8 +563,8 @@ handle unavailable endpoints gracefully until those backend phases ship.
 | Phase 6 | Knowledge Management | Source/document management and detail views done; indexing deferred until backend contract exists |
 | Phase 7 | RAG Studio | Structured run detail, confidence, citations, and verification display done; deeper variants follow backend evolution |
 | Phase 8 | Coding Review | Structured findings, architecture notes, test suggestions, and routed review variants done |
-| Phase 9 | Media Studio (images, video, audio) | Image/video generation, audio generation, and ASR upload thin slice done; current focus: dedicated TTS/ASR forms with voice/style/language, inline job status, and asset gallery preview thumbnails |
-| Phase 10 | Reasoning tools (analyze, compare) | Thin slice done; scoring detail planned |
+| Phase 9 | Media Studio (images, video, audio) | Image/video generation, audio TTS, ASR upload, dedicated TTS/ASR forms with voice/style/language, inline job status polling, and asset gallery preview thumbnails done |
+| Phase 10 | Reasoning tools (analyze, compare) | Thin slice done; current focus: structured Compare results (score matrix, weighted totals, recommendation) and structured Analyze results (key points and risks) |
 | Phase 11 | Settings & Monitoring | Thin slice done; validation/audit/metrics detail planned |
 
 ### Phase 2 — Navigation, Layout, Dashboard
@@ -720,33 +722,42 @@ Acceptance criteria:
 Tasks:
 
 - [x] Image/video generation form with model/prompt/dimensions.
-- [ ] Dedicated TTS form with model/text/voice/style/language.
-- [ ] Dedicated ASR form with audio upload, model, and language.
-- [ ] Asset gallery preview thumbnails for completed assets.
-- [ ] Job status inline while generating.
+- [x] Dedicated TTS form with model/text/voice/style/language.
+- [x] Dedicated ASR form with audio upload, model, and language.
+- [x] Asset gallery preview thumbnails for completed assets.
+- [x] Job status inline while generating.
 - [x] Model availability indicator (hot/cold from Sparky).
 
-TTS and ASR will share the audio tab but render as separate forms with
-their own field sets so optional voice/style/language inputs only apply
-where the backend accepts them. Asset gallery thumbnails will render
-image previews via the asset `uri` when present and fall back to a
-metadata-only card when the URI is absent or the asset is still pending.
+TTS and ASR share the audio tab but render as separate aria-labelled
+forms with their own field sets so optional voice/style/language inputs
+only apply where the backend accepts them. Asset gallery previews render
+inline image/video/audio elements via the asset `uri` when present and
+fall back to a metadata-only card when the URI is absent or the asset is
+still pending. Inline job status polls `/api/v1/jobs/{id}` until the job
+reaches a terminal state.
 
 Acceptance criteria:
 
-- [ ] Image/video/audio jobs submit successfully.
-- [ ] Gallery shows completed assets with previews when available.
-- [ ] Model cold/hot state visible before submission.
+- [x] Image/video/audio jobs submit successfully.
+- [x] Gallery shows completed assets with previews when available.
+- [x] Model cold/hot state visible before submission.
 
 ### Phase 10 — Reasoning Tools
 
 Tasks:
 
 - [x] Analyze form with task, context, criteria, output style.
-- [x] Analyze results: summary, key points, risks, recommendation.
+- [ ] Analyze results: structured summary, key points, risks, recommendation.
 - [x] Compare form with options, criteria, weights, constraints.
-- [ ] Compare results: score matrix, totals, recommendation.
+- [ ] Compare results: score matrix, weighted totals, recommendation.
 - [x] Confidence display on both.
+
+Compare results will parse `criteria_results` into a per-option score
+matrix (rows = options, columns = criteria), surface weighted totals and
+the winner with a recommendation paragraph, and fall back to the raw
+JSON disclosure when Maestro returns an unknown shape. Analyze results
+will render `steps` as ordered key-point cards and `risks` as severity-
+badged cards while preserving the existing raw-payload fallback.
 
 Acceptance criteria:
 
