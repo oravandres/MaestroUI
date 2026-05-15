@@ -148,15 +148,20 @@ describe("PR3 tool pages", () => {
     });
     vi.mocked(saveSetting).mockResolvedValue({ key: "ui.theme", value: "light" });
     vi.mocked(fetchMonitoringOverview).mockResolvedValue({
-      status: "healthy",
-      requests: 12,
-      errors: 0,
-      latency_p95_ms: 145,
-      active_jobs: 1,
-      updated_at: "2026-05-11T08:00:00Z",
+      events: { total: 12, by_level: { error: 0, warn: 0, info: 12 } },
+      jobs: {
+        by_status: { queued: 0, running: 1, completed: 0, failed: 0, cancelled: 0 },
+        by_priority: { high: 0, normal: 0, low: 0 },
+        oldest_queued_age_seconds: 0,
+      },
+      providers: {
+        darkbase: { status: "online", last_seen_at: "2026-05-15T13:00:00Z" },
+        mimi: { status: "online", last_seen_at: "2026-05-15T13:00:00Z" },
+      },
+      window_seconds: 3600,
     });
     vi.mocked(fetchMonitoringEvents).mockResolvedValue({ items: [], pagination: { total: 0 } });
-    vi.mocked(fetchAlerts).mockResolvedValue({ items: [], pagination: { total: 0 } });
+    vi.mocked(fetchAlerts).mockResolvedValue({ items: [] });
     vi.mocked(fetchUsageSummary).mockResolvedValue({
       requests: 12,
       tokens: 345,
@@ -876,7 +881,7 @@ describe("PR3 tool pages", () => {
     });
   });
 
-  it("renders latency p95 and filters events by source", async () => {
+  it("renders overall status from providers and filters events by source", async () => {
     const user = userEvent.setup();
     vi.mocked(fetchMonitoringEvents).mockResolvedValue({
       items: [
@@ -904,8 +909,12 @@ describe("PR3 tool pages", () => {
 
     renderWithProviders(<MonitoringPage />, { route: "/monitoring" });
 
-    expect(await screen.findByText("145 ms")).toBeInTheDocument();
-    expect(screen.getByText("Latency p95")).toBeInTheDocument();
+    const overviewRegion = await screen.findByLabelText("Monitoring overview");
+    const statusCard = within(overviewRegion).getByText("Status").closest("article");
+    expect(await within(statusCard!).findByText("healthy")).toBeInTheDocument();
+    const runningCard = within(overviewRegion).getByText("Running jobs").closest("article");
+    expect(within(runningCard!).getByText("1")).toBeInTheDocument();
+    expect(screen.queryByText("Latency p95")).not.toBeInTheDocument();
 
     const sourceSelect = await screen.findByLabelText(/source/i);
     await waitFor(() => expect(sourceSelect).not.toBeDisabled());
@@ -918,5 +927,41 @@ describe("PR3 tool pages", () => {
         source: "sparky",
       });
     });
+  });
+
+  it("renders alerts using severity and since fields from the backend", async () => {
+    vi.mocked(fetchAlerts).mockResolvedValue({
+      items: [
+        {
+          id: "alert-system-sparky-offline",
+          message: "Sparky DGX is offline",
+          severity: "critical",
+          since: "2026-05-14T19:50:33Z",
+          source: "systems",
+        },
+      ],
+    });
+
+    renderWithProviders(<MonitoringPage />, { route: "/monitoring" });
+
+    expect(await screen.findByText("Sparky DGX is offline")).toBeInTheDocument();
+    expect(screen.getByText(/critical/i)).toBeInTheDocument();
+    expect(screen.getByText(/Source: systems/i)).toBeInTheDocument();
+    expect(screen.getByText(/Since /)).toBeInTheDocument();
+  });
+
+  it("renders overall offline status when all providers are offline", async () => {
+    vi.mocked(fetchMonitoringOverview).mockResolvedValue({
+      events: { total: 0, by_level: {} },
+      jobs: { by_status: { queued: 0, running: 0, completed: 0, failed: 0, cancelled: 0 } },
+      providers: { darkbase: { status: "offline", last_seen_at: "2026-05-01T00:00:00Z" } },
+      window_seconds: 3600,
+    });
+
+    renderWithProviders(<MonitoringPage />, { route: "/monitoring" });
+
+    const overviewRegion = await screen.findByLabelText("Monitoring overview");
+    const statusCard = within(overviewRegion).getByText("Status").closest("article");
+    expect(await within(statusCard!).findByText("offline")).toBeInTheDocument();
   });
 });

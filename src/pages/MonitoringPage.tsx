@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import {
+  type MonitoringOverview,
   fetchAlerts,
   fetchMonitoringEvents,
   fetchMonitoringOverview,
@@ -11,9 +12,19 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { formatDateTime, formatLatencyMs, formatNumber } from "@/utils/format";
+import { formatDateTime, formatNumber } from "@/utils/format";
 
 const levels = ["", "debug", "info", "warning", "error"];
+
+function deriveOverallStatus(providers: MonitoringOverview["providers"]): string {
+  if (!providers) return "unknown";
+  const entries = Object.values(providers);
+  if (entries.length === 0) return "unknown";
+  const offline = entries.filter((entry) => entry.status === "offline").length;
+  if (offline === entries.length) return "offline";
+  if (offline > 0) return "degraded";
+  return "healthy";
+}
 
 export function MonitoringPage() {
   const [level, setLevel] = useState("");
@@ -53,6 +64,13 @@ export function MonitoringPage() {
     return Array.from(eventSources).sort();
   }, [eventsQuery.data, source]);
 
+  const overview = overviewQuery.data;
+  const overallStatus = deriveOverallStatus(overview?.providers);
+  const eventsTotal = overview?.events?.total;
+  const errorEvents = overview?.events?.by_level?.error;
+  const runningJobs = overview?.jobs?.by_status?.running;
+  const queuedJobs = overview?.jobs?.by_status?.queued;
+
   return (
     <div className="page-container">
       <header className="page-header">
@@ -61,11 +79,11 @@ export function MonitoringPage() {
       </header>
 
       <section className="stats-grid" aria-label="Monitoring overview">
-        <Metric label="Status" value={overviewQuery.data?.status ?? "unknown"} />
-        <Metric label="Requests" value={formatNumber(overviewQuery.data?.requests)} />
-        <Metric label="Errors" value={formatNumber(overviewQuery.data?.errors)} />
-        <Metric label="Latency p95" value={formatLatencyMs(overviewQuery.data?.latency_p95_ms)} />
-        <Metric label="Active jobs" value={formatNumber(overviewQuery.data?.active_jobs)} />
+        <Metric label="Status" value={overallStatus} />
+        <Metric label="Events" value={formatNumber(eventsTotal)} />
+        <Metric label="Errors" value={formatNumber(errorEvents)} />
+        <Metric label="Running jobs" value={formatNumber(runningJobs)} />
+        <Metric label="Queued jobs" value={formatNumber(queuedJobs)} />
       </section>
       {overviewQuery.isError ? (
         <section className="panel">
@@ -143,11 +161,11 @@ export function MonitoringPage() {
             {alertsQuery.data?.items.map((alert) => (
               <article className="list-card vertical-card" key={alert.id}>
                 <div className="card-title-row">
-                  <h3>{alert.title}</h3>
-                  <StatusBadge status={alert.level} />
+                  <h3>{alert.message}</h3>
+                  <StatusBadge status={alert.severity} />
                 </div>
-                <p>{alert.message}</p>
-                <p className="text-muted">{formatDateTime(alert.created_at)}</p>
+                {alert.source ? <p className="text-muted">Source: {alert.source}</p> : null}
+                <p className="text-muted">Since {formatDateTime(alert.since)}</p>
               </article>
             ))}
           </div>
