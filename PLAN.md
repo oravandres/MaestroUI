@@ -10,11 +10,14 @@
 > Management slice, the Phase 7 RAG Studio run detail (confidence, evidence,
 > citations, retrieval rounds, and verification display), the Phase 8 Coding
 > Review surface (structured findings, architecture notes, test suggestions,
-> and routed review variants), and the Phase 9 Media Studio slice (dedicated
+> and routed review variants), the Phase 9 Media Studio slice (dedicated
 > TTS/ASR forms with voice/style/language, inline job status polling, and
-> asset gallery preview thumbnails) are merged. Next focus: Phase 10
-> Reasoning — structured Compare results (score matrix, weighted totals,
-> recommendation) and structured Analyze results (key points and risks).
+> asset gallery preview thumbnails), and the Phase 10 Reasoning surface
+> (structured Compare results with score matrix and weighted totals and
+> structured Analyze results with key-point and risk cards) are merged.
+> Next focus: Phase 11 Settings & Monitoring — live JSON validation with
+> audit confirmation for sensitive settings, plus monitoring page source
+> filter and latency display.
 
 ---
 
@@ -564,8 +567,8 @@ handle unavailable endpoints gracefully until those backend phases ship.
 | Phase 7 | RAG Studio | Structured run detail, confidence, citations, and verification display done; deeper variants follow backend evolution |
 | Phase 8 | Coding Review | Structured findings, architecture notes, test suggestions, and routed review variants done |
 | Phase 9 | Media Studio (images, video, audio) | Image/video generation, audio TTS, ASR upload, dedicated TTS/ASR forms with voice/style/language, inline job status polling, and asset gallery preview thumbnails done |
-| Phase 10 | Reasoning tools (analyze, compare) | Thin slice done; current focus: structured Compare results (score matrix, weighted totals, recommendation) and structured Analyze results (key points and risks) |
-| Phase 11 | Settings & Monitoring | Thin slice done; validation/audit/metrics detail planned |
+| Phase 10 | Reasoning tools (analyze, compare) | Structured Compare results (score matrix, weighted totals, recommendation) and structured Analyze results (key points and risks) done |
+| Phase 11 | Settings & Monitoring | Thin slice and JSON validation done; current focus: live validation with audit confirmation for sensitive settings, plus monitoring source filter and latency display |
 
 ### Phase 2 — Navigation, Layout, Dashboard
 
@@ -747,22 +750,23 @@ Acceptance criteria:
 Tasks:
 
 - [x] Analyze form with task, context, criteria, output style.
-- [ ] Analyze results: structured summary, key points, risks, recommendation.
+- [x] Analyze results: structured summary, key points, risks, recommendation.
 - [x] Compare form with options, criteria, weights, constraints.
-- [ ] Compare results: score matrix, weighted totals, recommendation.
+- [x] Compare results: score matrix, weighted totals, recommendation.
 - [x] Confidence display on both.
 
-Compare results will parse `criteria_results` into a per-option score
-matrix (rows = options, columns = criteria), surface weighted totals and
-the winner with a recommendation paragraph, and fall back to the raw
-JSON disclosure when Maestro returns an unknown shape. Analyze results
-will render `steps` as ordered key-point cards and `risks` as severity-
-badged cards while preserving the existing raw-payload fallback.
+Compare results parse `criteria_results` into a per-option score matrix
+(rows = options, columns = criteria), surface weighted totals and the
+inferred winner, and lift recommendations and criteria weights into
+dedicated sections. Analyze results render `steps` as key-point cards
+(title, detail, evidence, next steps) and `risks` as severity-badged
+cards (title, detail, mitigation, likelihood). Both panels fall back to
+a raw JSON disclosure when Maestro returns an unknown shape.
 
 Acceptance criteria:
 
-- [ ] Analyze returns structured results.
-- [ ] Compare displays score matrix and recommendation.
+- [x] Analyze returns structured results.
+- [x] Compare displays score matrix and recommendation.
 
 ### Phase 11 — Settings & Monitoring
 
@@ -770,16 +774,28 @@ Tasks:
 
 - [x] Settings page with grouped configuration.
 - [x] Secret masking (never display unmasked).
-- [ ] Settings update with validation.
+- [x] Settings update with JSON validation.
+- [ ] Settings live validation with audit confirmation for sensitive changes.
 - [x] Monitoring overview page.
 - [x] Event log with level filtering.
+- [ ] Event log with source filtering.
+- [ ] Monitoring overview latency display.
 - [x] Alert display.
+
+Live validation runs the JSON parser as the user types so the save
+button only enables on a parseable payload and the inline error
+disappears immediately when the value becomes valid. Edits to secret
+settings require an explicit audit confirmation step before the request
+fires so accidental key/token rotations are caught. Monitoring grows a
+source filter on the event log (Maestro already accepts the parameter)
+and a latency p95 metric alongside the existing overview tiles.
 
 Acceptance criteria:
 
-- [ ] Settings load with masked secrets.
-- [ ] Updates save and reflect.
-- [ ] Events display with filtering.
+- [x] Settings load with masked secrets.
+- [ ] Updates save with live validation and an audit prompt on secrets.
+- [ ] Events display with level and source filtering.
+- [ ] Overview includes latency p95.
 
 ---
 
