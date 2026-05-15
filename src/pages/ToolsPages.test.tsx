@@ -633,6 +633,87 @@ describe("PR3 tool pages", () => {
     expect(await screen.findByText("Analysis failed")).toBeInTheDocument();
   });
 
+  it("renders analyze results with structured key points and risks", async () => {
+    const user = userEvent.setup();
+    vi.mocked(analyzeReasoning).mockResolvedValue({
+      id: "an-1",
+      status: "completed",
+      conclusion: "Release is high risk but tractable.",
+      confidence: "medium",
+      steps: [
+        {
+          title: "Inspect migration order",
+          description: "Confirm migrations run before traffic shifts.",
+          next_steps: ["Coordinate with DBAs."],
+        },
+        "Validate rollback plan with QA.",
+        { strange: { nested: true } },
+      ],
+      risks: [
+        {
+          title: "Schema drift",
+          detail: "Migration may leave nullable columns behind.",
+          severity: "high",
+          mitigation: "Add a follow-up migration to enforce NOT NULL.",
+          likelihood: "likely",
+        },
+        "Operational toil if alerts fire after rollout.",
+        { weird_shape: 1 },
+      ],
+      created_at: "2026-05-15T10:00:00Z",
+    });
+
+    renderWithProviders(<ReasoningPage />, { route: "/reasoning" });
+    await user.type(screen.getByLabelText(/^prompt$/i), "Assess the release risk.");
+    await user.click(screen.getByRole("button", { name: /analyze/i }));
+
+    expect(
+      await screen.findByText("Release is high risk but tractable.")
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Key points" })).toBeInTheDocument();
+    expect(screen.getByText("Inspect migration order")).toBeInTheDocument();
+    expect(
+      screen.getByText("Confirm migrations run before traffic shifts.")
+    ).toBeInTheDocument();
+    expect(screen.getByText("Coordinate with DBAs.")).toBeInTheDocument();
+    expect(screen.getByText("Validate rollback plan with QA.")).toBeInTheDocument();
+    expect(screen.getByText("Key point 3 raw payload")).toBeInTheDocument();
+
+    expect(screen.getByRole("heading", { name: "Risks" })).toBeInTheDocument();
+    expect(screen.getByText("Schema drift")).toBeInTheDocument();
+    expect(screen.getByText("Likelihood: likely")).toBeInTheDocument();
+    expect(
+      screen.getByText("Add a follow-up migration to enforce NOT NULL.")
+    ).toBeInTheDocument();
+    expect(screen.getByText("Operational toil if alerts fire after rollout.")).toBeInTheDocument();
+    expect(screen.getByText("Risk 3 raw payload")).toBeInTheDocument();
+
+    const highBadge = screen.getByText("high").closest(".status-badge");
+    expect(highBadge).not.toBeNull();
+    expect(highBadge).toHaveClass("status-badge-error");
+  });
+
+  it("shows analyze empty state when no key points or risks are returned", async () => {
+    const user = userEvent.setup();
+    vi.mocked(analyzeReasoning).mockResolvedValue({
+      id: "an-2",
+      status: "completed",
+      conclusion: "Nothing to report.",
+      confidence: "low",
+      steps: [],
+      risks: [],
+      created_at: "2026-05-15T10:00:00Z",
+    });
+
+    renderWithProviders(<ReasoningPage />, { route: "/reasoning" });
+    await user.type(screen.getByLabelText(/^prompt$/i), "Look for issues.");
+    await user.click(screen.getByRole("button", { name: /analyze/i }));
+
+    expect(await screen.findByText("Nothing to report.")).toBeInTheDocument();
+    expect(screen.getByText("No key points returned")).toBeInTheDocument();
+    expect(screen.getByText("No risks returned")).toBeInTheDocument();
+  });
+
   it("renders compare results with a score matrix and recommendation", async () => {
     const user = userEvent.setup();
     vi.mocked(compareReasoning).mockResolvedValue({
