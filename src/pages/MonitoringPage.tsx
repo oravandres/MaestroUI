@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   fetchAlerts,
   fetchMonitoringEvents,
@@ -11,20 +11,26 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { formatDateTime, formatNumber } from "@/utils/format";
+import { formatDateTime, formatLatencyMs, formatNumber } from "@/utils/format";
 
 const levels = ["", "debug", "info", "warning", "error"];
 
 export function MonitoringPage() {
   const [level, setLevel] = useState("");
+  const [source, setSource] = useState("");
   const overviewQuery = useQuery({
     queryKey: ["monitoring-overview"],
     queryFn: fetchMonitoringOverview,
     retry: false,
   });
   const eventsQuery = useQuery({
-    queryKey: ["monitoring-events", level],
-    queryFn: () => fetchMonitoringEvents({ limit: 50, level: level || undefined }),
+    queryKey: ["monitoring-events", level, source],
+    queryFn: () =>
+      fetchMonitoringEvents({
+        limit: 50,
+        level: level || undefined,
+        source: source || undefined,
+      }),
     retry: false,
   });
   const alertsQuery = useQuery({
@@ -38,6 +44,15 @@ export function MonitoringPage() {
     retry: false,
   });
 
+  const sources = useMemo(() => {
+    const eventSources = new Set<string>();
+    for (const event of eventsQuery.data?.items ?? []) {
+      if (event.source) eventSources.add(event.source);
+    }
+    if (source) eventSources.add(source);
+    return Array.from(eventSources).sort();
+  }, [eventsQuery.data, source]);
+
   return (
     <div className="page-container">
       <header className="page-header">
@@ -49,6 +64,7 @@ export function MonitoringPage() {
         <Metric label="Status" value={overviewQuery.data?.status ?? "unknown"} />
         <Metric label="Requests" value={formatNumber(overviewQuery.data?.requests)} />
         <Metric label="Errors" value={formatNumber(overviewQuery.data?.errors)} />
+        <Metric label="Latency p95" value={formatLatencyMs(overviewQuery.data?.latency_p95_ms)} />
         <Metric label="Active jobs" value={formatNumber(overviewQuery.data?.active_jobs)} />
       </section>
       {overviewQuery.isError ? (
@@ -62,18 +78,35 @@ export function MonitoringPage() {
           <div className="panel-header">
             <div>
               <h2>Event log</h2>
-              <p>Filter by event level.</p>
+              <p>Filter by event level and source.</p>
             </div>
-            <label className="field compact-field">
-              <span>Level</span>
-              <select value={level} onChange={(event) => setLevel(event.target.value)}>
-                {levels.map((item) => (
-                  <option key={item || "all"} value={item}>
-                    {item || "all"}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="panel-filters">
+              <label className="field compact-field">
+                <span>Level</span>
+                <select value={level} onChange={(event) => setLevel(event.target.value)}>
+                  {levels.map((item) => (
+                    <option key={item || "all"} value={item}>
+                      {item || "all"}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field compact-field">
+                <span>Source</span>
+                <select
+                  value={source}
+                  onChange={(event) => setSource(event.target.value)}
+                  disabled={sources.length === 0}
+                >
+                  <option value="">all</option>
+                  {sources.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
           </div>
           {eventsQuery.isLoading ? <LoadingState label="Loading events" /> : null}
           {eventsQuery.isError ? (

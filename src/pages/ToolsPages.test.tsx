@@ -151,7 +151,7 @@ describe("PR3 tool pages", () => {
       status: "healthy",
       requests: 12,
       errors: 0,
-      latency_p95_ms: 120,
+      latency_p95_ms: 145,
       active_jobs: 1,
       updated_at: "2026-05-11T08:00:00Z",
     });
@@ -857,7 +857,7 @@ describe("PR3 tool pages", () => {
     expect(await screen.findByText("Setting saved.")).toBeInTheDocument();
   });
 
-  it("filters monitoring events and renders empty states", async () => {
+  it("filters monitoring events by level and renders empty states", async () => {
     const user = userEvent.setup();
     renderWithProviders(<MonitoringPage />, { route: "/monitoring" });
 
@@ -871,6 +871,51 @@ describe("PR3 tool pages", () => {
       expect(fetchMonitoringEvents).toHaveBeenCalledWith({
         limit: 50,
         level: "error",
+        source: undefined,
+      });
+    });
+  });
+
+  it("renders latency p95 and filters events by source", async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchMonitoringEvents).mockResolvedValue({
+      items: [
+        {
+          id: "evt-1",
+          source: "maestro",
+          level: "info",
+          event_type: "request",
+          message: "Request accepted",
+          metadata: {},
+          created_at: "2026-05-15T10:00:00Z",
+        },
+        {
+          id: "evt-2",
+          source: "sparky",
+          level: "warning",
+          event_type: "warning",
+          message: "Sparky cold start",
+          metadata: {},
+          created_at: "2026-05-15T10:01:00Z",
+        },
+      ],
+      pagination: { total: 2 },
+    });
+
+    renderWithProviders(<MonitoringPage />, { route: "/monitoring" });
+
+    expect(await screen.findByText("145 ms")).toBeInTheDocument();
+    expect(screen.getByText("Latency p95")).toBeInTheDocument();
+
+    const sourceSelect = await screen.findByLabelText(/source/i);
+    await waitFor(() => expect(sourceSelect).not.toBeDisabled());
+    await user.selectOptions(sourceSelect, "sparky");
+
+    await waitFor(() => {
+      expect(fetchMonitoringEvents).toHaveBeenLastCalledWith({
+        limit: 50,
+        level: undefined,
+        source: "sparky",
       });
     });
   });
