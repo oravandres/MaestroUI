@@ -7,10 +7,12 @@
 > **Priority:** Main features first. Build a usable vertical slice before advanced polish.
 > **Status:** Foundation, runtime proxy/BFF hardening, API contract alignment,
 > Phase 4 chat UX, Phase 5 core Jobs & Queue UX, the safe Phase 6 Knowledge
-> Management slice, and the Phase 7 RAG Studio run detail (confidence,
-> evidence, citations, retrieval rounds, and verification display) are merged.
-> Next focus: Phase 8 Coding Review — structured architecture notes and
-> test-suggestion rendering on top of the existing findings list.
+> Management slice, the Phase 7 RAG Studio run detail (confidence, evidence,
+> citations, retrieval rounds, and verification display), and the Phase 8
+> Coding Review surface (structured findings, architecture notes, test
+> suggestions, and routed review variants) are merged. Next focus: Phase 9
+> Media Studio — dedicated TTS/ASR forms with voice/style/language inputs,
+> inline job status while generating, and asset gallery preview thumbnails.
 
 ---
 
@@ -558,8 +560,8 @@ handle unavailable endpoints gracefully until those backend phases ship.
 | Phase 5 | Jobs & Queue | Core UX done; worker visibility deferred until backend contract exists |
 | Phase 6 | Knowledge Management | Source/document management and detail views done; indexing deferred until backend contract exists |
 | Phase 7 | RAG Studio | Structured run detail, confidence, citations, and verification display done; deeper variants follow backend evolution |
-| Phase 8 | Coding Review | Findings list and recommendation done; current focus: structured architecture notes and test-suggestion rendering |
-| Phase 9 | Media Studio (images, video, audio) | Thin slice done; deeper TTS/ASR asset workflows planned |
+| Phase 8 | Coding Review | Structured findings, architecture notes, test suggestions, and routed review variants done |
+| Phase 9 | Media Studio (images, video, audio) | Image/video generation, audio generation, and ASR upload thin slice done; current focus: dedicated TTS/ASR forms with voice/style/language, inline job status, and asset gallery preview thumbnails |
 | Phase 10 | Reasoning tools (analyze, compare) | Thin slice done; scoring detail planned |
 | Phase 11 | Settings & Monitoring | Thin slice done; validation/audit/metrics detail planned |
 
@@ -718,16 +720,22 @@ Acceptance criteria:
 Tasks:
 
 - [x] Image/video generation form with model/prompt/dimensions.
-- [ ] Dedicated TTS form with model/text/voice/style.
-- [ ] Dedicated ASR form with audio upload.
-- [ ] Asset gallery with thumbnails.
+- [ ] Dedicated TTS form with model/text/voice/style/language.
+- [ ] Dedicated ASR form with audio upload, model, and language.
+- [ ] Asset gallery preview thumbnails for completed assets.
 - [ ] Job status inline while generating.
 - [x] Model availability indicator (hot/cold from Sparky).
+
+TTS and ASR will share the audio tab but render as separate forms with
+their own field sets so optional voice/style/language inputs only apply
+where the backend accepts them. Asset gallery thumbnails will render
+image previews via the asset `uri` when present and fall back to a
+metadata-only card when the URI is absent or the asset is still pending.
 
 Acceptance criteria:
 
 - [ ] Image/video/audio jobs submit successfully.
-- [ ] Gallery shows completed assets.
+- [ ] Gallery shows completed assets with previews when available.
 - [ ] Model cold/hot state visible before submission.
 
 ### Phase 10 — Reasoning Tools
