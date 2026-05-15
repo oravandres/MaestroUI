@@ -1,8 +1,9 @@
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/api/client";
 import { submitCodeReview } from "@/api/coding";
+import { fetchJob } from "@/api/jobs";
 import { fetchMediaAssets, generateMedia, uploadMedia } from "@/api/media";
 import {
   fetchAlerts,
@@ -24,6 +25,14 @@ vi.mock("@/api/coding", () => ({
   codingReviewVariants: ["review", "architecture", "refactor_plan", "security_review"],
   submitCodeReview: vi.fn(),
 }));
+
+vi.mock("@/api/jobs", async () => {
+  const actual = await vi.importActual<typeof import("@/api/jobs")>("@/api/jobs");
+  return {
+    ...actual,
+    fetchJob: vi.fn(),
+  };
+});
 
 vi.mock("@/api/media", () => ({
   fetchMediaAssets: vi.fn(),
@@ -67,6 +76,9 @@ describe("PR3 tool pages", () => {
       new ApiError("not found", 404, { error: { message: "not found" } })
     );
     vi.mocked(uploadMedia).mockRejectedValue(new Error("not called"));
+    vi.mocked(fetchJob).mockRejectedValue(
+      new ApiError("not found", 404, { error: { message: "not found" } })
+    );
     vi.mocked(fetchModels).mockResolvedValue({
       items: [
         {
@@ -341,18 +353,113 @@ describe("PR3 tool pages", () => {
     expect(await screen.findByText("Generation failed")).toBeInTheDocument();
   });
 
-  it("keeps ASR-only models out of the audio generation selector", async () => {
+  it("scopes audio.tts and audio.asr models to their dedicated forms", async () => {
     const user = userEvent.setup();
     renderWithProviders(<MediaPage />, { route: "/media" });
 
     await screen.findByText("No media assets");
     await user.click(screen.getByRole("button", { name: "audio" }));
 
+    const ttsForm = await screen.findByRole("form", { name: "Generate audio" });
+    const asrForm = await screen.findByRole("form", { name: "Transcribe audio" });
+
     await waitFor(() => {
-      expect(screen.getByRole("option", { name: "MiMi Audio" })).toBeInTheDocument();
+      expect(within(ttsForm).getByRole("option", { name: "MiMi Audio" })).toBeInTheDocument();
     });
-    expect(screen.queryByRole("option", { name: "MiMi ASR" })).not.toBeInTheDocument();
-    expect(screen.getByText("MiMi ASR")).toBeInTheDocument();
+    expect(within(ttsForm).queryByRole("option", { name: "MiMi ASR" })).not.toBeInTheDocument();
+    expect(within(asrForm).getByRole("option", { name: "MiMi ASR" })).toBeInTheDocument();
+    expect(within(asrForm).queryByRole("option", { name: "MiMi Audio" })).not.toBeInTheDocument();
+  });
+
+  it("submits TTS with voice, style, and language fields", async () => {
+    const user = userEvent.setup();
+    vi.mocked(generateMedia).mockResolvedValue({ job_id: "job-tts", status: "queued" });
+    renderWithProviders(<MediaPage />, { route: "/media" });
+
+    await screen.findByText("No media assets");
+    await user.click(screen.getByRole("button", { name: "audio" }));
+
+    const ttsForm = await screen.findByRole("form", { name: "Generate audio" });
+    await user.selectOptions(within(ttsForm).getByLabelText("Model"), "mimi-audio");
+    await user.type(within(ttsForm).getByLabelText("Text"), "Welcome to Maestro.");
+    await user.type(within(ttsForm).getByLabelText("Voice"), "narrator");
+    await user.type(within(ttsForm).getByLabelText("Style"), "calm");
+    await user.type(within(ttsForm).getByLabelText("Language"), "en");
+    await user.click(within(ttsForm).getByRole("button", { name: /generate/i }));
+
+    await waitFor(() => {
+      expect(vi.mocked(generateMedia).mock.calls[0]?.[0]).toEqual({
+        type: "audio",
+        prompt: "Welcome to Maestro.",
+        model_id: "mimi-audio",
+        voice: "narrator",
+        style: "calm",
+        language: "en",
+      });
+    });
+    expect(await screen.findByText(/job-tts/)).toBeInTheDocument();
+  });
+
+  it("submits ASR with model and language fields", async () => {
+    const user = userEvent.setup();
+    vi.mocked(uploadMedia).mockResolvedValue({ job_id: "job-asr", status: "queued" });
+    renderWithProviders(<MediaPage />, { route: "/media" });
+
+    await screen.findByText("No media assets");
+    await user.click(screen.getByRole("button", { name: "audio" }));
+
+    const asrForm = await screen.findByRole("form", { name: "Transcribe audio" });
+    await user.selectOptions(within(asrForm).getByLabelText("Model"), "mimi-asr");
+    await user.type(within(asrForm).getByLabelText("Language"), "et");
+    const audioFile = new File(["sample"], "clip.wav", { type: "audio/wav" });
+    await user.upload(within(asrForm).getByLabelText("File") as HTMLInputElement, audioFile);
+    await user.click(within(asrForm).getByRole("button", { name: /transcribe/i }));
+
+    await waitFor(() => {
+      expect(vi.mocked(uploadMedia).mock.calls[0]?.[0]).toEqual({
+        type: "audio",
+        file: audioFile,
+        model_id: "mimi-asr",
+        language: "et",
+      });
+    });
+    expect(await screen.findByText(/job-asr/)).toBeInTheDocument();
+  });
+
+  it("renders inline job status with polled progress", async () => {
+    const user = userEvent.setup();
+    vi.mocked(generateMedia).mockResolvedValue({ job_id: "job-image", status: "queued" });
+    vi.mocked(fetchJob).mockResolvedValue({
+      job: {
+        id: "job-image",
+        type: "media.image",
+        status: "running",
+        priority: "normal",
+        target_system: "mimi",
+        input: {},
+        output: {},
+        error: null,
+        progress: 42,
+        external_job_id: null,
+        lease_id: null,
+        lease_expires_at: null,
+        run_at: "2026-05-11T08:00:00Z",
+        idempotency_key: null,
+        retries: 0,
+        max_retries: 3,
+        created_at: "2026-05-11T08:00:00Z",
+        started_at: "2026-05-11T08:00:01Z",
+        completed_at: null,
+      },
+      events: [],
+    });
+
+    renderWithProviders(<MediaPage />, { route: "/media" });
+    await screen.findByText("No media assets");
+    await user.type(screen.getByLabelText(/prompt/i), "image prompt");
+    await user.click(screen.getByRole("button", { name: /generate/i }));
+
+    expect(await screen.findByText(/running \(42%\)/)).toBeInTheDocument();
   });
 
   it("keeps media generation and upload cleanup scoped to the submitted media type", async () => {
