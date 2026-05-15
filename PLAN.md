@@ -12,12 +12,14 @@
 > Review surface (structured findings, architecture notes, test suggestions,
 > and routed review variants), the Phase 9 Media Studio slice (dedicated
 > TTS/ASR forms with voice/style/language, inline job status polling, and
-> asset gallery preview thumbnails), and the Phase 10 Reasoning surface
+> asset gallery preview thumbnails), the Phase 10 Reasoning surface
 > (structured Compare results with score matrix and weighted totals and
-> structured Analyze results with key-point and risk cards) are merged.
-> Next focus: Phase 11 Settings & Monitoring — live JSON validation with
-> audit confirmation for sensitive settings, plus monitoring page source
-> filter and latency display.
+> structured Analyze results with key-point and risk cards), and the
+> Phase 11 Settings & Monitoring slice (live JSON validation with audit
+> confirmation for sensitive settings, monitoring source filter, and
+> latency p95 tile) are merged. Next focus: Polish & Performance —
+> route-level lazy loading with Suspense fallback and vendor `manualChunks`
+> splitting so the initial bundle drops below the 500 kB warning threshold.
 
 ---
 
@@ -568,7 +570,8 @@ handle unavailable endpoints gracefully until those backend phases ship.
 | Phase 8 | Coding Review | Structured findings, architecture notes, test suggestions, and routed review variants done |
 | Phase 9 | Media Studio (images, video, audio) | Image/video generation, audio TTS, ASR upload, dedicated TTS/ASR forms with voice/style/language, inline job status polling, and asset gallery preview thumbnails done |
 | Phase 10 | Reasoning tools (analyze, compare) | Structured Compare results (score matrix, weighted totals, recommendation) and structured Analyze results (key points and risks) done |
-| Phase 11 | Settings & Monitoring | Thin slice and JSON validation done; current focus: live validation with audit confirmation for sensitive settings, plus monitoring source filter and latency display |
+| Phase 11 | Settings & Monitoring | Live JSON validation with audit confirmation for sensitive settings, monitoring event log source filter, and latency p95 tile done |
+| Polish & Performance | Bundle hygiene, code-split, and developer experience | Current focus: route-level lazy loading with Suspense fallback, then `manualChunks` for vendor splitting to drop the initial bundle below 500 kB |
 
 ### Phase 2 — Navigation, Layout, Dashboard
 
@@ -793,9 +796,25 @@ and a latency p95 metric alongside the existing overview tiles.
 Acceptance criteria:
 
 - [x] Settings load with masked secrets.
-- [ ] Updates save with live validation and an audit prompt on secrets.
-- [ ] Events display with level and source filtering.
-- [ ] Overview includes latency p95.
+- [x] Updates save with live validation and an audit prompt on secrets.
+- [x] Events display with level and source filtering.
+- [x] Overview includes latency p95.
+
+### Polish & Performance — Bundle hygiene
+
+Tasks:
+
+- [ ] Route-level lazy loading with a Suspense fallback so the initial
+      bundle only contains the dashboard and shared shell.
+- [ ] Vite `manualChunks` for vendor splitting (react, react-router,
+      tanstack-query, zod, lucide) so caching survives most product
+      changes.
+
+Acceptance criteria:
+
+- [ ] Initial bundle drops below the 500 kB pre-gzip warning threshold.
+- [ ] Each non-dashboard route is fetched on first navigation only.
+- [ ] Vendor chunks change only when a dependency upgrade ships.
 
 ---
 
