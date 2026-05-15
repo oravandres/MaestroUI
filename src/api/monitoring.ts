@@ -17,41 +17,49 @@ const eventsResponseSchema = z.object({
   pagination: paginationSchema,
 });
 
-const monitoringOverviewSchema = z.object({
+const countSchema = z.number().int().nonnegative().optional();
+
+const monitoringEventsSummarySchema = z.object({
+  total: countSchema,
+  by_level: z.record(countSchema).optional(),
+});
+
+const monitoringJobsSummarySchema = z.object({
+  by_status: z
+    .object({
+      queued: countSchema,
+      running: countSchema,
+      completed: countSchema,
+      failed: countSchema,
+      cancelled: countSchema,
+    })
+    .optional(),
+  by_priority: z.record(countSchema).optional(),
+  oldest_queued_age_seconds: z.number().nonnegative().optional(),
+});
+
+const monitoringProviderSchema = z.object({
   status: z.string(),
-  requests: z.number().int().nonnegative(),
-  errors: z.number().int().nonnegative(),
-  latency_p95_ms: z.number().nonnegative().optional().nullable(),
-  active_jobs: z.number().int().nonnegative(),
-  updated_at: z.string().optional().nullable(),
+  last_seen_at: z.string().optional().nullable(),
+});
+
+const monitoringOverviewSchema = z.object({
+  events: monitoringEventsSummarySchema.optional(),
+  jobs: monitoringJobsSummarySchema.optional(),
+  providers: z.record(monitoringProviderSchema).optional(),
+  window_seconds: z.number().nonnegative().optional(),
 });
 
 const alertSchema = z.object({
   id: z.string(),
-  level: z.string(),
-  title: z.string(),
   message: z.string(),
+  severity: z.string(),
+  since: z.string(),
   source: z.string().optional().nullable(),
-  created_at: z.string(),
-  resolved_at: z.string().optional().nullable(),
-});
-
-const usageSummarySchema = z.object({
-  requests: z.number().int().nonnegative(),
-  tokens: z.number().int().nonnegative(),
-  cost_usd: z.number().nonnegative().optional().nullable(),
-  by_model: z.array(
-    z.object({
-      model_id: z.string(),
-      requests: z.number().int().nonnegative(),
-      tokens: z.number().int().nonnegative(),
-    })
-  ),
 });
 
 const alertsResponseSchema = z.object({
   items: z.array(alertSchema),
-  pagination: paginationSchema,
 });
 
 export type PlatformEvent = z.infer<typeof eventSchema>;
@@ -59,7 +67,6 @@ export type EventsResponse = z.infer<typeof eventsResponseSchema>;
 export type MonitoringOverview = z.infer<typeof monitoringOverviewSchema>;
 export type Alert = z.infer<typeof alertSchema>;
 export type AlertsResponse = z.infer<typeof alertsResponseSchema>;
-export type UsageSummary = z.infer<typeof usageSummarySchema>;
 
 export interface FetchMonitoringEventsOptions {
   limit?: number;
@@ -88,6 +95,21 @@ export async function fetchAlerts(): Promise<AlertsResponse> {
   const data = await fetchJson<unknown>("/api/v1/monitoring/alerts");
   return parseApiResponse(alertsResponseSchema, data, "monitoring alerts");
 }
+
+const usageSummarySchema = z.object({
+  requests: z.number().int().nonnegative(),
+  tokens: z.number().int().nonnegative(),
+  cost_usd: z.number().nonnegative().optional().nullable(),
+  by_model: z.array(
+    z.object({
+      model_id: z.string(),
+      requests: z.number().int().nonnegative(),
+      tokens: z.number().int().nonnegative(),
+    })
+  ),
+});
+
+export type UsageSummary = z.infer<typeof usageSummarySchema>;
 
 export async function fetchUsageSummary(): Promise<UsageSummary> {
   const data = await fetchJson<unknown>("/api/v1/monitoring/usage");
