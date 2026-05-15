@@ -1,24 +1,51 @@
+import { type ComponentType, lazy } from "react";
 import { createBrowserRouter } from "react-router";
 import { Layout } from "@/components/Layout";
-import { ChatPage } from "@/pages/ChatPage";
-import { CodingPage } from "@/pages/CodingPage";
-import { ConversationPage } from "@/pages/ConversationPage";
 import { DashboardPage } from "@/pages/DashboardPage";
-import { JobDetailPage } from "@/pages/JobDetailPage";
-import { JobsPage } from "@/pages/JobsPage";
-import { KnowledgeDocumentPage } from "@/pages/KnowledgeDocumentPage";
-import { KnowledgePage } from "@/pages/KnowledgePage";
-import { KnowledgeSourcePage } from "@/pages/KnowledgeSourcePage";
-import { MediaPage } from "@/pages/MediaPage";
-import { ModelDetailPage } from "@/pages/ModelDetailPage";
-import { ModelsPage } from "@/pages/ModelsPage";
-import { MonitoringPage } from "@/pages/MonitoringPage";
-import { RagRunPage } from "@/pages/RagRunPage";
-import { RagStudioPage } from "@/pages/RagStudioPage";
-import { ReasoningPage } from "@/pages/ReasoningPage";
-import { SettingsPage } from "@/pages/SettingsPage";
-import { SystemDetailPage } from "@/pages/SystemDetailPage";
-import { SystemsPage } from "@/pages/SystemsPage";
+
+function lazyNamed<TKey extends string>(
+  loader: () => Promise<Record<string, unknown>>,
+  key: TKey
+) {
+  return lazy(async () => {
+    const module = await loader();
+    return { default: module[key] as ComponentType<unknown> };
+  });
+}
+
+const ChatPage = lazyNamed(() => import("@/pages/ChatPage"), "ChatPage");
+const ConversationPage = lazyNamed(
+  () => import("@/pages/ConversationPage"),
+  "ConversationPage"
+);
+const RagStudioPage = lazyNamed(() => import("@/pages/RagStudioPage"), "RagStudioPage");
+const RagRunPage = lazyNamed(() => import("@/pages/RagRunPage"), "RagRunPage");
+const KnowledgePage = lazyNamed(() => import("@/pages/KnowledgePage"), "KnowledgePage");
+const KnowledgeSourcePage = lazyNamed(
+  () => import("@/pages/KnowledgeSourcePage"),
+  "KnowledgeSourcePage"
+);
+const KnowledgeDocumentPage = lazyNamed(
+  () => import("@/pages/KnowledgeDocumentPage"),
+  "KnowledgeDocumentPage"
+);
+const JobsPage = lazyNamed(() => import("@/pages/JobsPage"), "JobsPage");
+const JobDetailPage = lazyNamed(() => import("@/pages/JobDetailPage"), "JobDetailPage");
+const CodingPage = lazyNamed(() => import("@/pages/CodingPage"), "CodingPage");
+const MediaPage = lazyNamed(() => import("@/pages/MediaPage"), "MediaPage");
+const ReasoningPage = lazyNamed(() => import("@/pages/ReasoningPage"), "ReasoningPage");
+const SystemsPage = lazyNamed(() => import("@/pages/SystemsPage"), "SystemsPage");
+const SystemDetailPage = lazyNamed(
+  () => import("@/pages/SystemDetailPage"),
+  "SystemDetailPage"
+);
+const ModelsPage = lazyNamed(() => import("@/pages/ModelsPage"), "ModelsPage");
+const ModelDetailPage = lazyNamed(
+  () => import("@/pages/ModelDetailPage"),
+  "ModelDetailPage"
+);
+const SettingsPage = lazyNamed(() => import("@/pages/SettingsPage"), "SettingsPage");
+const MonitoringPage = lazyNamed(() => import("@/pages/MonitoringPage"), "MonitoringPage");
 
 export const router = createBrowserRouter([
   {
