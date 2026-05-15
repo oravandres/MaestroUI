@@ -69,21 +69,14 @@ export function JobsPage() {
         <p className="page-subtitle">Queued, running, completed, and failed Maestro work.</p>
       </header>
 
-      <div className="stats-grid">
-        <QueueCard label="Queued" value={summaryQuery.data?.queued} />
-        <QueueCard label="Running" value={summaryQuery.data?.running} />
-        <QueueCard label="Workers" value={summaryQuery.data?.workers} />
-        <QueueCard label="Visible jobs" value={jobsQuery.data?.items.length} />
-      </div>
-      {summaryQuery.isError ? (
-        <section className="panel">
-          <ErrorState
-            error={summaryQuery.error}
-            title="Queue summary unavailable"
-            onRetry={() => void summaryQuery.refetch()}
-          />
-        </section>
-      ) : null}
+      {summaryQuery.isError ? null : (
+        <div className="stats-grid">
+          <QueueCard label="Queued" value={summaryQuery.data?.queued} />
+          <QueueCard label="Running" value={summaryQuery.data?.running} />
+          <QueueCard label="Workers" value={summaryQuery.data?.workers} />
+          <QueueCard label="Visible jobs" value={jobsQuery.data?.items.length} />
+        </div>
+      )}
 
       <section className="panel">
         <label className="field compact-field">

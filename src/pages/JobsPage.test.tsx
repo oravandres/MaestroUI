@@ -161,4 +161,20 @@ describe("JobsPage", () => {
     expect(vi.mocked(fetchJobs)).toHaveBeenCalledTimes(1);
     expect(vi.mocked(fetchQueueSummary)).toHaveBeenCalledTimes(1);
   });
+
+  it("hides the queue summary tiles when the summary endpoint errors", async () => {
+    vi.mocked(fetchQueueSummary).mockRejectedValue(new Error("failed to get job"));
+    renderWithProviders(<JobsPage />, { route: "/jobs" });
+
+    expect(await screen.findByText("job-queued")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(vi.mocked(fetchQueueSummary)).toHaveBeenCalled();
+    });
+
+    expect(screen.queryByText("Queued")).not.toBeInTheDocument();
+    expect(screen.queryByText("Running")).not.toBeInTheDocument();
+    expect(screen.queryByText("Workers")).not.toBeInTheDocument();
+    expect(screen.queryByText("Visible jobs")).not.toBeInTheDocument();
+    expect(screen.queryByText("Queue summary unavailable")).not.toBeInTheDocument();
+  });
 });
