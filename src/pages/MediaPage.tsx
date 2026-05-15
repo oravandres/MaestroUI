@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import { Upload, WandSparkles } from "lucide-react";
+import { Mic, WandSparkles } from "lucide-react";
 import { fetchMediaAssets, generateMedia, uploadMedia } from "@/api/media";
+import { fetchJob, isActiveJobStatus } from "@/api/jobs";
 import { fetchModels } from "@/api/systems";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
@@ -42,7 +43,14 @@ export function MediaPage() {
   const [activeType, setActiveType] = useState<MediaType>("image");
   const [prompts, setPrompts] = useState<Record<MediaType, string>>(emptyPrompts);
   const [modelId, setModelId] = useState("");
+  const [ttsVoice, setTtsVoice] = useState("");
+  const [ttsStyle, setTtsStyle] = useState("");
+  const [ttsLanguage, setTtsLanguage] = useState("");
+  const [asrModelId, setAsrModelId] = useState("");
+  const [asrLanguage, setAsrLanguage] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [generationJobId, setGenerationJobId] = useState<string | null>(null);
+  const [uploadJobId, setUploadJobId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const activeTypeRef = useRef(activeType);
   const fileRef = useRef<File | null>(file);
@@ -58,23 +66,25 @@ export function MediaPage() {
   });
   const generationMutation = useMutation({
     mutationFn: generateMedia,
-    onSuccess: async (_data, variables) => {
+    onSuccess: async (data, variables) => {
       setPrompts((current) =>
         current[variables.type] === variables.prompt
           ? { ...current, [variables.type]: "" }
           : current
       );
+      setGenerationJobId(data.job_id);
       await queryClient.invalidateQueries({ queryKey: ["media-assets", variables.type] });
     },
   });
   const uploadMutation = useMutation({
     mutationFn: uploadMedia,
-    onSuccess: async (_data, variables) => {
+    onSuccess: async (data, variables) => {
       if (activeTypeRef.current === variables.type && fileRef.current === variables.file) {
         fileRef.current = null;
         setFile(null);
         if (fileInputRef.current) fileInputRef.current.value = "";
       }
+      setUploadJobId(data.job_id);
       await queryClient.invalidateQueries({ queryKey: ["media-assets", variables.type] });
     },
   });
@@ -86,7 +96,6 @@ export function MediaPage() {
   const transcriptionModels =
     modelsQuery.data?.items.filter((model) => supportsAudioTranscription(model.capability)) ??
     [];
-  const supportingModels = activeType === "audio" ? transcriptionModels : generationModels;
 
   useEffect(() => {
     activeTypeRef.current = activeType;
@@ -127,13 +136,21 @@ export function MediaPage() {
       type: activeType,
       prompt: prompt.trim(),
       model_id: modelId || undefined,
+      voice: activeType === "audio" && ttsVoice.trim() ? ttsVoice.trim() : undefined,
+      style: activeType === "audio" && ttsStyle.trim() ? ttsStyle.trim() : undefined,
+      language: activeType === "audio" && ttsLanguage.trim() ? ttsLanguage.trim() : undefined,
     });
   }
 
   function submitUpload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (activeType !== "audio" || !file) return;
-    uploadMutation.mutate({ type: "audio", file });
+    uploadMutation.mutate({
+      type: "audio",
+      file,
+      model_id: asrModelId || undefined,
+      language: asrLanguage.trim() || undefined,
+    });
   }
 
   return (
@@ -159,8 +176,12 @@ export function MediaPage() {
 
       <div className="detail-grid">
         <section className="panel">
-          <h2>Generate {activeType}</h2>
-          <form className="form-grid tool-form" onSubmit={submitGeneration}>
+          <h2>{activeType === "audio" ? "Generate audio" : `Generate ${activeType}`}</h2>
+          <form
+            className="form-grid tool-form"
+            onSubmit={submitGeneration}
+            aria-label={activeType === "audio" ? "Generate audio" : `Generate ${activeType}`}
+          >
             <label className="field">
               <span>Model</span>
               <select value={modelId} onChange={(event) => setModelId(event.target.value)}>
@@ -176,6 +197,34 @@ export function MediaPage() {
               <span>{activeType === "audio" ? "Text" : "Prompt"}</span>
               <textarea rows={4} value={prompt} onChange={(event) => updatePrompt(event.target.value)} />
             </label>
+            {activeType === "audio" ? (
+              <>
+                <label className="field">
+                  <span>Voice</span>
+                  <input
+                    value={ttsVoice}
+                    placeholder="e.g. narrator"
+                    onChange={(event) => setTtsVoice(event.target.value)}
+                  />
+                </label>
+                <label className="field">
+                  <span>Style</span>
+                  <input
+                    value={ttsStyle}
+                    placeholder="e.g. calm"
+                    onChange={(event) => setTtsStyle(event.target.value)}
+                  />
+                </label>
+                <label className="field">
+                  <span>Language</span>
+                  <input
+                    value={ttsLanguage}
+                    placeholder="e.g. en"
+                    onChange={(event) => setTtsLanguage(event.target.value)}
+                  />
+                </label>
+              </>
+            ) : null}
             <button
               className="button button-primary"
               type="submit"
@@ -185,10 +234,11 @@ export function MediaPage() {
               Generate
             </button>
           </form>
-          {generationMutation.data ? (
-            <p className="section-summary">
-              Job <Link to={`/jobs/${generationMutation.data.job_id}`}>{generationMutation.data.job_id}</Link> is {generationMutation.data.status}.
-            </p>
+          {generationJobId ? (
+            <InlineJobStatus
+              jobId={generationJobId}
+              fallbackStatus={generationMutation.data?.status ?? "queued"}
+            />
           ) : null}
           {generationMutation.isError ? (
             <ErrorState error={generationMutation.error} title="Generation failed" />
@@ -199,7 +249,30 @@ export function MediaPage() {
           {activeType === "audio" ? (
             <>
               <h2>Transcribe audio</h2>
-              <form className="form-grid tool-form" onSubmit={submitUpload}>
+              <form
+                className="form-grid tool-form"
+                onSubmit={submitUpload}
+                aria-label="Transcribe audio"
+              >
+                <label className="field">
+                  <span>Model</span>
+                  <select value={asrModelId} onChange={(event) => setAsrModelId(event.target.value)}>
+                    <option value="">Auto select</option>
+                    {transcriptionModels.map((model) => (
+                      <option key={model.id} value={model.id}>
+                        {model.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Language</span>
+                  <input
+                    value={asrLanguage}
+                    placeholder="e.g. en"
+                    onChange={(event) => setAsrLanguage(event.target.value)}
+                  />
+                </label>
                 <label className="field field-wide">
                   <span>File</span>
                   <input
@@ -214,25 +287,35 @@ export function MediaPage() {
                   type="submit"
                   disabled={!file || uploadMutation.isPending}
                 >
-                  <Upload aria-hidden="true" size={16} />
+                  <Mic aria-hidden="true" size={16} />
                   Transcribe
                 </button>
               </form>
+              {uploadJobId ? (
+                <InlineJobStatus
+                  jobId={uploadJobId}
+                  fallbackStatus={uploadMutation.data?.status ?? "queued"}
+                />
+              ) : null}
               {uploadMutation.isError ? (
                 <ErrorState error={uploadMutation.error} title="Transcription failed" />
               ) : null}
             </>
           ) : (
-            <h2>Available {activeType} models</h2>
+            <>
+              <h2>Available {activeType} models</h2>
+              <div className="tag-list">
+                {generationModels.length === 0 ? (
+                  <span className="tag">No media models available</span>
+                ) : null}
+                {generationModels.map((model) => (
+                  <span className="tag" key={model.id}>
+                    {model.name}
+                  </span>
+                ))}
+              </div>
+            </>
           )}
-          <div className="tag-list">
-            {supportingModels.length === 0 ? <span className="tag">No media models available</span> : null}
-            {supportingModels.map((model) => (
-              <span className="tag" key={model.id}>
-                {model.name}
-              </span>
-            ))}
-          </div>
         </section>
       </div>
 
@@ -261,5 +344,31 @@ export function MediaPage() {
         ) : null}
       </section>
     </div>
+  );
+}
+
+interface InlineJobStatusProps {
+  jobId: string;
+  fallbackStatus: string;
+}
+
+function InlineJobStatus({ jobId, fallbackStatus }: InlineJobStatusProps) {
+  const query = useQuery({
+    queryKey: ["job", jobId],
+    queryFn: () => fetchJob(jobId),
+    refetchInterval: (q) => {
+      const detail = q.state.data;
+      if (!detail) return 2000;
+      return isActiveJobStatus(detail.job.status) ? 2000 : false;
+    },
+    retry: false,
+  });
+  const status = query.data?.job.status ?? fallbackStatus;
+  const progress = query.data?.job.progress;
+  return (
+    <p className="section-summary">
+      Job <Link to={`/jobs/${jobId}`}>{jobId}</Link> — {status}
+      {typeof progress === "number" ? ` (${progress}%)` : ""}
+    </p>
   );
 }
