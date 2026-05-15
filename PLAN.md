@@ -23,14 +23,14 @@
 > are merged, along with the Reliability & UX batch (top-level
 > `RouteErrorBoundary` that recovers from chunk-load failures and render
 > errors, and sidebar hover/focus prefetch so cold-route navigation feels
-> instant). Next focus: **API contract reconciliation** — a live audit
-> against the MiMi-deployed Maestro backend exposed several schema drifts
-> where the UI's Zod schemas disagree with what Maestro actually ships
-> (Dashboard summary, Settings, Monitoring overview/alerts, plus a known
-> 500 from `/api/v1/jobs/summary` and the still-missing
-> `/api/v1/monitoring/usage` and `/api/v1/media/assets` endpoints). The
-> next slice realigns those schemas to the strict backend shape and
-> degrades gracefully where the backend errors or is missing.
+> instant) and the API contract reconciliation batch (Dashboard summary,
+> Settings, Monitoring overview, and Monitoring alerts schemas now match
+> what Maestro actually ships, plus the Jobs queue summary degrades
+> gracefully when the backend errors and the deploy refresh procedure is
+> documented in the README). Next focus: pending — most concrete
+> frontend work that doesn't depend on backend contract work is shipped,
+> so the next batch will be chosen based on user priorities or new
+> backend capabilities landing in Maestro.
 
 ---
 
@@ -581,9 +581,10 @@ handle unavailable endpoints gracefully until those backend phases ship.
 | Phase 8 | Coding Review | Structured findings, architecture notes, test suggestions, and routed review variants done |
 | Phase 9 | Media Studio (images, video, audio) | Image/video generation, audio TTS, ASR upload, dedicated TTS/ASR forms with voice/style/language, inline job status polling, and asset gallery preview thumbnails done |
 | Phase 10 | Reasoning tools (analyze, compare) | Structured Compare results (score matrix, weighted totals, recommendation) and structured Analyze results (key points and risks) done |
-| Phase 11 | Settings & Monitoring | Live JSON validation with audit confirmation for sensitive settings, monitoring event log source filter, and latency p95 tile done |
+| Phase 11 | Settings & Monitoring | Live JSON validation with audit confirmation for sensitive settings, monitoring event log source filter, and the original latency p95 tile done — latency tile later removed when contract reconciliation showed Maestro does not ship the field |
 | Polish & Performance | Bundle hygiene, code-split, and developer experience | Route-level lazy loading and vendor `manualChunks` done; the app shell is 21 kB and each lazy page chunk is fetched on first navigation only |
-| Reliability & UX | Error recovery and perceived performance | Current focus: top-level error boundary that recovers from lazy chunk failures and render errors, plus prefetching the next page's chunk on sidebar hover/focus |
+| Reliability & UX | Error recovery and perceived performance | Top-level `RouteErrorBoundary` and sidebar hover/focus prefetch done |
+| API contract reconciliation | Match Maestro's actual shapes | Dashboard, Settings, Monitoring overview, Monitoring alerts schemas realigned with what Maestro ships; Jobs queue summary degrades gracefully on 5xx; deploy refresh documented in `README.md` |
 
 ### Phase 2 — Navigation, Layout, Dashboard
 
@@ -880,40 +881,38 @@ Verified backend reality:
 
 Tasks:
 
-- [ ] Update `dashboardSummarySchema` and `DashboardPage` to read
+- [x] Update `dashboardSummarySchema` and `DashboardPage` to read
       `systems.online`, `models.online`, and `jobs.by_status.{queued,
       running,failed}` directly. Drop the obsolete `healthy`/`hot`
-      terminology in the schema; keep the labels human-friendly in the UI.
-- [ ] Add an adapter in `fetchSettings` that maps the backend's
+      terminology and fetch the Conversations tile total from the
+      existing `/api/v1/conversations` endpoint.
+- [x] Add an adapter in `fetchSettings` that maps the backend's
       `{ settings: {...}, updated_at }` payload into the existing
       `[{ key, value }]` items list the page already consumes.
-- [ ] Rebuild `monitoringOverviewSchema` and `alertsResponseSchema`
+- [x] Rebuild `monitoringOverviewSchema` and `alertsResponseSchema`
       around the real backend shapes. Derive overall status from
-      `providers`, requests/errors from `events.by_level`, and hide the
-      Latency p95 tile when the field is absent. Map alerts'
-      `severity` → level badge, `since` → timestamp.
-- [ ] Hide the Jobs queue summary panel when `/api/v1/jobs/summary`
-      returns a 5xx, instead of surfacing a scary "Unable to load"
-      block. The rest of the Jobs page (list, filters, detail) keeps
-      working.
-- [ ] Document the deploy refresh: the cluster is currently serving a
-      bundle from before the lazy-loading / latency-tile work
-      (`index-qb7u5ehl.js`, single chunk, no vendor split). Once the
-      contract fixes land, the container image needs a rebuild so the
-      MiMi rollout picks up both the contract fixes and the prior
-      polish work.
+      `providers`, surface event totals and error counts, drop the
+      Latency p95 tile entirely (backend doesn't ship the field), and
+      map alerts' `severity` → level badge, `since` → timestamp.
+- [x] Hide the Jobs queue summary tiles and error panel when
+      `/api/v1/jobs/summary` errors. The Jobs list, status filter, and
+      cancel actions stay visible.
+- [x] Document the deploy refresh procedure in `README.md` —
+      two-repo flow (MaestroUI publishes the image, MiMi pins the
+      digest), commands to verify the live bundle hash, and what to
+      look for when a rollout didn't take.
 
 Acceptance criteria:
 
-- [ ] Dashboard tiles show real counts (e.g. `2 online` / `1 online`).
-- [ ] Settings page lists real keys with secrets masked.
-- [ ] Monitoring overview renders without parse errors and reflects
+- [x] Dashboard tiles show real counts (e.g. `2 online` / `1 online`).
+- [x] Settings page lists real keys with secrets masked.
+- [x] Monitoring overview renders without parse errors and reflects
       provider status / event counts from the live response.
-- [ ] Monitoring alerts list shows real alerts with correct severity.
-- [ ] Jobs page no longer shows a scary failure for the queue summary;
+- [x] Monitoring alerts list shows real alerts with correct severity.
+- [x] Jobs page no longer shows a scary failure for the queue summary;
       the rest of the page keeps working.
-- [ ] Deploy refresh procedure is documented (or a no-op bump
-      committed) so the MiMi cluster can pick up current main.
+- [x] Deploy refresh procedure is documented so the MiMi cluster can
+      pick up current main.
 
 ---
 
