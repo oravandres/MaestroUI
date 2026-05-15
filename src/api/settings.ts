@@ -7,15 +7,15 @@ export const settingSchema = z.object({
   value: z.unknown(),
 });
 
-const settingsResponseSchema = z.object({
-  items: z.array(settingSchema),
+const wireSettingsPayloadSchema = z.object({
+  settings: z.record(z.unknown()),
+  updated_at: z.string().optional(),
 });
 
-const settingResponseSchema = z.object({
-  setting: settingSchema,
-});
-
-const saveSettingResponseSchema = z.union([settingResponseSchema, settingsResponseSchema]);
+const settingsResponseSchema = wireSettingsPayloadSchema.transform((payload) => ({
+  items: Object.entries(payload.settings).map(([key, value]) => ({ key, value })),
+  updated_at: payload.updated_at,
+}));
 
 export type Setting = z.infer<typeof settingSchema>;
 export type SettingsResponse = z.infer<typeof settingsResponseSchema>;
@@ -39,9 +39,7 @@ export async function saveSetting(key: string, value: unknown): Promise<Setting>
   const data = await patchJson<unknown>("/api/v1/settings", {
     settings: { [key]: value },
   });
-  const parsed = parseApiResponse(saveSettingResponseSchema, data, "setting");
-  if ("setting" in parsed) return parsed.setting;
-  const updated = parsed.items.find((setting) => setting.key === key);
-  if (updated) return updated;
-  throw new Error("Settings response did not include the updated setting.");
+  const parsed = parseApiResponse(wireSettingsPayloadSchema, data, "setting");
+  const updatedValue = parsed.settings[key];
+  return { key, value: updatedValue ?? value };
 }
