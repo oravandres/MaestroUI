@@ -376,7 +376,8 @@ describe("API route contracts", () => {
 
   it("patches settings through the aggregate settings route", async () => {
     const fetchMock = stubFetch({
-      setting: { key: "ui.theme", value: "light" },
+      settings: { "ui.theme": "light" },
+      updated_at: "2026-05-15T12:00:00Z",
     });
 
     await saveSetting("ui.theme", "light");
