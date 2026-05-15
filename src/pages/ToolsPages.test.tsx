@@ -633,6 +633,94 @@ describe("PR3 tool pages", () => {
     expect(await screen.findByText("Analysis failed")).toBeInTheDocument();
   });
 
+  it("renders compare results with a score matrix and recommendation", async () => {
+    const user = userEvent.setup();
+    vi.mocked(compareReasoning).mockResolvedValue({
+      id: "cmp-1",
+      status: "completed",
+      winner: "Option A",
+      confidence: "high",
+      summary: "Option A offers better total value.",
+      criteria_results: [
+        {
+          option: "Option A",
+          score: 8,
+          weighted_total: 7.4,
+          breakdown: [
+            { criterion: "Cost", score: 7 },
+            { criterion: "Speed", score: 9 },
+          ],
+        },
+        {
+          option: "Option B",
+          score: 6,
+          weighted_total: 6.1,
+          breakdown: [
+            { criterion: "Cost", score: 8 },
+            { criterion: "Speed", score: 5 },
+          ],
+        },
+        { criterion: "Cost", weight: 0.4, detail: "Operating cost per month" },
+        {
+          recommendation: "Pick Option A and renegotiate Option B's pricing.",
+          caveats: ["Assumes pricing stays stable for 12 months."],
+        },
+        { freeform: "no schema match" },
+      ],
+      created_at: "2026-05-15T10:00:00Z",
+    });
+
+    renderWithProviders(<ReasoningPage />, { route: "/reasoning" });
+    await user.type(screen.getByLabelText(/option a/i), "Option A");
+    await user.type(screen.getByLabelText(/option b/i), "Option B");
+    await user.type(screen.getByLabelText(/criteria/i), "Cost, Speed");
+    await user.click(screen.getByRole("button", { name: /^compare$/i }));
+
+    expect(await screen.findByText("Option A offers better total value.")).toBeInTheDocument();
+
+    const matrix = await screen.findByRole("table");
+    expect(matrix.querySelectorAll("thead th")).toHaveLength(5);
+    const rows = matrix.querySelectorAll("tbody tr");
+    expect(rows).toHaveLength(2);
+    const firstRow = rows[0] as HTMLTableRowElement;
+    expect(firstRow.textContent).toContain("Option A");
+    expect(firstRow.textContent).toContain("★");
+    expect(firstRow.textContent).toContain("7.40");
+
+    expect(screen.getByText(/Operating cost per month/)).toBeInTheDocument();
+    expect(
+      screen.getByText("Pick Option A and renegotiate Option B's pricing.")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Assumes pricing stays stable for 12 months.")
+    ).toBeInTheDocument();
+    expect(screen.getByText("Comparison detail 5 raw payload")).toBeInTheDocument();
+  });
+
+  it("falls back to a raw disclosure when compare returns unknown shape", async () => {
+    const user = userEvent.setup();
+    vi.mocked(compareReasoning).mockResolvedValue({
+      id: "cmp-2",
+      status: "completed",
+      winner: null,
+      confidence: "medium",
+      summary: "Comparison details unavailable.",
+      criteria_results: ["raw note", { strange: { shape: true } }],
+      created_at: "2026-05-15T10:00:00Z",
+    });
+
+    renderWithProviders(<ReasoningPage />, { route: "/reasoning" });
+    await user.type(screen.getByLabelText(/option a/i), "X");
+    await user.type(screen.getByLabelText(/option b/i), "Y");
+    await user.type(screen.getByLabelText(/criteria/i), "Speed");
+    await user.click(screen.getByRole("button", { name: /^compare$/i }));
+
+    expect(await screen.findByText("Comparison details unavailable.")).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.getByText("Comparison detail 1 raw payload")).toBeInTheDocument();
+    expect(screen.getByText("Comparison detail 2 raw payload")).toBeInTheDocument();
+  });
+
   it("masks settings secrets and validates edited JSON", async () => {
     const user = userEvent.setup();
     renderWithProviders(<SettingsPage />, { route: "/settings" });

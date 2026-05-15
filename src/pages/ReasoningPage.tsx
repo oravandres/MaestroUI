@@ -5,6 +5,7 @@ import { analyzeReasoning, compareReasoning } from "@/api/reasoning";
 import { ErrorState } from "@/components/common/ErrorState";
 import { JsonPreview } from "@/components/common/JsonPreview";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { CompareResultPanel } from "@/components/reasoning/CompareResultPanel";
 
 export function ReasoningPage() {
   const [prompt, setPrompt] = useState("");
@@ -105,15 +106,7 @@ export function ReasoningPage() {
             <ErrorState error={compareMutation.error} title="Comparison failed" />
           ) : null}
           {compareMutation.data ? (
-            <ResultPanel
-              title={compareMutation.data.summary}
-              status={compareMutation.data.status}
-              confidence={compareMutation.data.confidence}
-              payload={{
-                winner: compareMutation.data.winner,
-                criteria_results: compareMutation.data.criteria_results,
-              }}
-            />
+            <CompareResultPanel result={compareMutation.data} />
           ) : null}
         </section>
       </div>

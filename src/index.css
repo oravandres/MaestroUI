@@ -882,6 +882,53 @@ a {
   height: 40px;
 }
 
+.compare-section {
+  display: grid;
+  gap: 8px;
+}
+
+.compare-section h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.compare-matrix {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.compare-matrix th,
+.compare-matrix td {
+  padding: 8px 10px;
+  border: 1px solid var(--surface-border);
+  text-align: left;
+}
+
+.compare-matrix thead th {
+  background: rgba(255, 255, 255, 0.04);
+  font-weight: 700;
+}
+
+.compare-matrix tbody th {
+  background: rgba(255, 255, 255, 0.02);
+  font-weight: 600;
+}
+
+.winner-tag {
+  margin-left: 6px;
+  color: var(--color-success);
+  font-weight: 700;
+}
+
+.recommendation-block {
+  display: grid;
+  gap: 6px;
+}
+
 .settings-group {
   display: grid;
   gap: 8px;
