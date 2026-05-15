@@ -3,41 +3,58 @@ import { fetchJson } from "@/api/client";
 import { parseApiResponse } from "@/api/parse";
 
 const countSchema = z.number().int().nonnegative().optional();
+
+const systemSummaryItemSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  status: z.string(),
+});
+
 const systemSummarySchema = z.object({
   total: countSchema,
-  healthy: countSchema,
-  degraded: countSchema,
+  online: countSchema,
   offline: countSchema,
+  items: z.array(systemSummaryItemSchema).optional(),
 });
+
 const modelSummarySchema = z.object({
   total: countSchema,
-  hot: countSchema,
-  cold: countSchema,
-  loading: countSchema,
-  evicting: countSchema,
+  online: countSchema,
+  offline: countSchema,
 });
-const conversationSummarySchema = z.object({
-  total: countSchema,
-  recent: countSchema,
-});
-const jobSummarySchema = z.object({
-  active: countSchema,
+
+const jobsByStatusSchema = z.object({
   queued: countSchema,
+  running: countSchema,
+  completed: countSchema,
   failed: countSchema,
+  cancelled: countSchema,
+});
+
+const jobsByPrioritySchema = z.object({
+  high: countSchema,
+  normal: countSchema,
+  low: countSchema,
+});
+
+const jobSummarySchema = z.object({
+  by_status: jobsByStatusSchema.optional(),
+  by_priority: jobsByPrioritySchema.optional(),
+  oldest_queued_age_seconds: z.number().nonnegative().optional(),
 });
 
 const dashboardSummarySchema = z
   .object({
     systems: systemSummarySchema.optional(),
     models: modelSummarySchema.optional(),
-    conversations: conversationSummarySchema.optional(),
     jobs: jobSummarySchema.optional(),
+    recent_events: z.array(z.unknown()).optional(),
   })
   .transform((value) => ({
     systems: value.systems ?? {},
     models: value.models ?? {},
-    conversations: value.conversations ?? {},
     jobs: value.jobs ?? {},
+    recent_events: value.recent_events ?? [],
   }));
 
 export type DashboardSummary = z.infer<typeof dashboardSummarySchema>;

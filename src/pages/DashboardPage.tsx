@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { Bot, BriefcaseBusiness, Database, MessageSquare, RefreshCw } from "lucide-react";
+import { fetchConversations } from "@/api/chat";
 import { fetchDashboardSummary } from "@/api/dashboard";
 import { fetchMonitoringEvents } from "@/api/monitoring";
 import { fetchSystems } from "@/api/systems";
@@ -21,6 +22,11 @@ export function DashboardPage() {
     queryFn: fetchSystems,
     refetchInterval: 30_000,
   });
+  const conversationsQuery = useQuery({
+    queryKey: ["dashboard-conversations"],
+    queryFn: fetchConversations,
+    retry: false,
+  });
   const eventsQuery = useQuery({
     queryKey: ["monitoring-events", 10],
     queryFn: () => fetchMonitoringEvents(10),
@@ -29,7 +35,9 @@ export function DashboardPage() {
 
   const summary = summaryQuery.data;
   const systems = systemsQuery.data?.items ?? [];
-  const healthyCount = systems.filter((system) => system.status === "healthy").length;
+  const onlineSystemCount = systems.filter((system) => system.status === "online").length;
+  const jobCounts = summary?.jobs?.by_status;
+  const conversationsTotal = conversationsQuery.data?.pagination?.total;
 
   return (
     <div className="page-container" id="dashboard-page">
@@ -47,25 +55,25 @@ export function DashboardPage() {
             systemsQuery.data?.pagination.total ??
             systems.length
           }
-          detail={`${formatNumber(summary?.systems?.healthy ?? healthyCount)} healthy`}
+          detail={`${formatNumber(summary?.systems?.online ?? onlineSystemCount)} online`}
         />
         <SummaryCard
           icon={<Bot aria-hidden="true" size={22} />}
           label="Models"
           value={summary?.models?.total}
-          detail={`${formatNumber(summary?.models?.hot)} hot`}
+          detail={`${formatNumber(summary?.models?.online)} online`}
         />
         <SummaryCard
           icon={<MessageSquare aria-hidden="true" size={22} />}
           label="Conversations"
-          value={summary?.conversations?.total}
-          detail={`${formatNumber(summary?.conversations?.recent)} recent`}
+          value={conversationsTotal}
+          detail={`${formatNumber(conversationsTotal)} total`}
         />
         <SummaryCard
           icon={<BriefcaseBusiness aria-hidden="true" size={22} />}
           label="Jobs"
-          value={summary?.jobs?.active}
-          detail={`${formatNumber(summary?.jobs?.queued)} queued, ${formatNumber(summary?.jobs?.failed)} failed`}
+          value={jobCounts?.running}
+          detail={`${formatNumber(jobCounts?.queued)} queued, ${formatNumber(jobCounts?.failed)} failed`}
         />
       </section>
 
@@ -182,4 +190,3 @@ function SummaryCard({ icon, label, value, detail }: SummaryCardProps) {
     </article>
   );
 }
-
