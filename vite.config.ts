@@ -34,9 +34,32 @@ export default defineConfig(({ command, mode }) => {
         },
       },
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: vendorChunks,
+        },
+      },
+    },
     test: {
       environment: "jsdom",
       setupFiles: "./src/test/setup.ts",
     },
   };
 });
+
+const vendorBuckets: ReadonlyArray<{ name: string; match: RegExp }> = [
+  { name: "vendor-react", match: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+  { name: "vendor-router", match: /[\\/]node_modules[\\/]react-router(-dom)?[\\/]/ },
+  { name: "vendor-query", match: /[\\/]node_modules[\\/]@tanstack[\\/]/ },
+  { name: "vendor-zod", match: /[\\/]node_modules[\\/]zod[\\/]/ },
+  { name: "vendor-icons", match: /[\\/]node_modules[\\/]lucide-react[\\/]/ },
+];
+
+function vendorChunks(id: string): string | undefined {
+  if (!id.includes("node_modules")) return undefined;
+  for (const bucket of vendorBuckets) {
+    if (bucket.match.test(id)) return bucket.name;
+  }
+  return "vendor-other";
+}
