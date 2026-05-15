@@ -1,7 +1,7 @@
 import { Menu } from "lucide-react";
 import { useState } from "react";
 import { NavLink } from "react-router";
-import { navigationItems } from "@/components/layout/navigation";
+import { navigationItems, prefetchRoute } from "@/components/layout/navigation";
 
 export function MobileNav() {
   const [open, setOpen] = useState(false);
@@ -20,17 +20,22 @@ export function MobileNav() {
       </button>
       {open ? (
         <nav id="mobile-menu" className="mobile-menu" aria-label="Primary navigation">
-          {navigationItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              end={item.path === "/"}
-              className={({ isActive }) => `mobile-link ${isActive ? "active" : ""}`}
-              onClick={() => setOpen(false)}
-            >
-              {item.label}
-            </NavLink>
-          ))}
+          {navigationItems.map((item) => {
+            const warm = () => prefetchRoute(item.path);
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                end={item.path === "/"}
+                className={({ isActive }) => `mobile-link ${isActive ? "active" : ""}`}
+                onPointerEnter={warm}
+                onFocus={warm}
+                onClick={() => setOpen(false)}
+              >
+                {item.label}
+              </NavLink>
+            );
+          })}
         </nav>
       ) : null}
     </div>
