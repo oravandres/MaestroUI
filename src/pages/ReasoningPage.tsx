@@ -3,8 +3,7 @@ import { type FormEvent, useState } from "react";
 import { Brain, GitCompare } from "lucide-react";
 import { analyzeReasoning, compareReasoning } from "@/api/reasoning";
 import { ErrorState } from "@/components/common/ErrorState";
-import { JsonPreview } from "@/components/common/JsonPreview";
-import { StatusBadge } from "@/components/common/StatusBadge";
+import { AnalyzeResultPanel } from "@/components/reasoning/AnalyzeResultPanel";
 import { CompareResultPanel } from "@/components/reasoning/CompareResultPanel";
 
 export function ReasoningPage() {
@@ -64,12 +63,7 @@ export function ReasoningPage() {
             <ErrorState error={analyzeMutation.error} title="Analysis failed" />
           ) : null}
           {analyzeMutation.data ? (
-            <ResultPanel
-              title={analyzeMutation.data.conclusion}
-              status={analyzeMutation.data.status}
-              confidence={analyzeMutation.data.confidence}
-              payload={{ steps: analyzeMutation.data.steps, risks: analyzeMutation.data.risks }}
-            />
+            <AnalyzeResultPanel result={analyzeMutation.data} />
           ) : null}
         </section>
 
@@ -114,25 +108,3 @@ export function ReasoningPage() {
   );
 }
 
-function ResultPanel({
-  title,
-  status,
-  confidence,
-  payload,
-}: {
-  title: string;
-  status: string;
-  confidence: string;
-  payload: unknown;
-}) {
-  return (
-    <article className="result-panel">
-      <div className="card-title-row">
-        <h3>{title}</h3>
-        <StatusBadge status={status} />
-      </div>
-      <p>Confidence: {confidence}</p>
-      <JsonPreview value={payload} />
-    </article>
-  );
-}
