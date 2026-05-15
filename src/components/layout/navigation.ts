@@ -34,3 +34,25 @@ export const navigationItems: NavigationItem[] = [
   { label: "Settings", path: "/settings", icon: Settings },
   { label: "Monitoring", path: "/monitoring", icon: Activity },
 ];
+
+// Module loaders keyed by sidebar path. The router uses the same `import()`
+// targets so the bundler dedupes the request — calling these helpers on
+// hover/focus simply warms the cache for the upcoming navigation.
+const routeImporters: Record<string, () => Promise<unknown>> = {
+  "/chat": () => import("@/pages/ChatPage"),
+  "/rag": () => import("@/pages/RagStudioPage"),
+  "/knowledge": () => import("@/pages/KnowledgePage"),
+  "/jobs": () => import("@/pages/JobsPage"),
+  "/coding": () => import("@/pages/CodingPage"),
+  "/media": () => import("@/pages/MediaPage"),
+  "/reasoning": () => import("@/pages/ReasoningPage"),
+  "/systems": () => import("@/pages/SystemsPage"),
+  "/models": () => import("@/pages/ModelsPage"),
+  "/settings": () => import("@/pages/SettingsPage"),
+  "/monitoring": () => import("@/pages/MonitoringPage"),
+};
+
+export function prefetchRoute(path: string): void {
+  const loader = routeImporters[path];
+  if (loader) void loader();
+}

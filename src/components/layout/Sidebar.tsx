@@ -1,5 +1,5 @@
 import { NavLink } from "react-router";
-import { navigationItems } from "@/components/layout/navigation";
+import { navigationItems, prefetchRoute } from "@/components/layout/navigation";
 
 export function Sidebar() {
   return (
@@ -14,12 +14,15 @@ export function Sidebar() {
       <nav className="sidebar-nav" aria-label="Primary navigation">
         {navigationItems.map((item) => {
           const Icon = item.icon;
+          const warm = () => prefetchRoute(item.path);
           return (
             <NavLink
               key={item.path}
               to={item.path}
               end={item.path === "/"}
               className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
+              onPointerEnter={warm}
+              onFocus={warm}
             >
               <Icon aria-hidden="true" className="nav-icon" size={18} />
               <span>{item.label}</span>
