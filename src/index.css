@@ -864,6 +864,24 @@ a {
   margin: 0;
 }
 
+.asset-preview {
+  display: block;
+  width: 100%;
+  border-radius: calc(var(--radius-md) - 4px);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.asset-preview-image,
+.asset-preview-video {
+  aspect-ratio: 16 / 9;
+  max-height: 180px;
+  object-fit: cover;
+}
+
+.asset-preview-audio {
+  height: 40px;
+}
+
 .settings-group {
   display: grid;
   gap: 8px;

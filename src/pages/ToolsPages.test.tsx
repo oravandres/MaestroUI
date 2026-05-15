@@ -341,6 +341,106 @@ describe("PR3 tool pages", () => {
     expect(await screen.findByText("Generation failed")).toBeInTheDocument();
   });
 
+  it("renders inline previews for completed media assets", async () => {
+    vi.mocked(fetchMediaAssets).mockResolvedValue({
+      items: [
+        {
+          id: "asset-image",
+          type: "image",
+          status: "completed",
+          title: "Architecture diagram",
+          uri: "https://media.local/diagram.png",
+          job_id: "job-image",
+          model_id: "mimi-image",
+          metadata: {},
+          created_at: "2026-05-11T08:00:00Z",
+        },
+        {
+          id: "asset-pending",
+          type: "image",
+          status: "queued",
+          title: "Pending render",
+          uri: null,
+          job_id: "job-image-2",
+          model_id: null,
+          metadata: {},
+          created_at: "2026-05-11T08:01:00Z",
+        },
+      ],
+      pagination: { total: 2 },
+    });
+
+    renderWithProviders(<MediaPage />, { route: "/media" });
+
+    const preview = (await screen.findByAltText("Architecture diagram")) as HTMLImageElement;
+    expect(preview.tagName).toBe("IMG");
+    expect(preview.getAttribute("src")).toBe("https://media.local/diagram.png");
+    expect(preview).toHaveClass("asset-preview-image");
+
+    expect(screen.queryByAltText("Pending render")).not.toBeInTheDocument();
+    expect(screen.getByText("Pending render")).toBeInTheDocument();
+  });
+
+  it("renders inline previews for completed video and audio assets", async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchMediaAssets).mockImplementation(async (type?: string) => {
+      if (type === "video") {
+        return {
+          items: [
+            {
+              id: "asset-video",
+              type: "video",
+              status: "completed",
+              title: "Studio clip",
+              uri: "https://media.local/clip.mp4",
+              job_id: "job-video",
+              model_id: "mimi-video",
+              metadata: {},
+              created_at: "2026-05-11T08:00:00Z",
+            },
+          ],
+          pagination: { total: 1 },
+        };
+      }
+      if (type === "audio") {
+        return {
+          items: [
+            {
+              id: "asset-audio",
+              type: "audio",
+              status: "completed",
+              title: "Voice over",
+              uri: "https://media.local/voice.wav",
+              job_id: "job-audio",
+              model_id: "mimi-audio",
+              metadata: {},
+              created_at: "2026-05-11T08:00:00Z",
+            },
+          ],
+          pagination: { total: 1 },
+        };
+      }
+      return { items: [], pagination: { total: 0 } };
+    });
+
+    renderWithProviders(<MediaPage />, { route: "/media" });
+    await screen.findByText("No media assets");
+
+    await user.click(screen.getByRole("button", { name: "video" }));
+
+    const video = await screen.findByLabelText("Studio clip");
+    expect(video.tagName).toBe("VIDEO");
+    expect(video).toHaveAttribute("src", "https://media.local/clip.mp4");
+    expect(video).toHaveClass("asset-preview-video");
+
+    await user.click(screen.getByRole("button", { name: "audio" }));
+
+    const audio = await screen.findByLabelText("Voice over");
+    expect(audio.tagName).toBe("AUDIO");
+    expect(audio).toHaveAttribute("src", "https://media.local/voice.wav");
+    expect(audio).toHaveClass("asset-preview-audio");
+  });
+
   it("keeps ASR-only models out of the audio generation selector", async () => {
     const user = userEvent.setup();
     renderWithProviders(<MediaPage />, { route: "/media" });
