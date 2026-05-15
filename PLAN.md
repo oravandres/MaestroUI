@@ -20,10 +20,17 @@
 > latency p95 tile), and the Polish & Performance batch (route-level
 > lazy loading with Suspense fallback and vendor `manualChunks` shrinking
 > the app shell from 491 kB to a 21 kB shell plus stable vendor chunks)
-> are merged. Next focus: Reliability & UX — a top-level error boundary
-> that recovers from chunk-load failures and component render errors, and
-> prefetching the next page's lazy chunk when the user hovers a sidebar
-> link so cold-route navigation feels instant.
+> are merged, along with the Reliability & UX batch (top-level
+> `RouteErrorBoundary` that recovers from chunk-load failures and render
+> errors, and sidebar hover/focus prefetch so cold-route navigation feels
+> instant). Next focus: **API contract reconciliation** — a live audit
+> against the MiMi-deployed Maestro backend exposed several schema drifts
+> where the UI's Zod schemas disagree with what Maestro actually ships
+> (Dashboard summary, Settings, Monitoring overview/alerts, plus a known
+> 500 from `/api/v1/jobs/summary` and the still-missing
+> `/api/v1/monitoring/usage` and `/api/v1/media/assets` endpoints). The
+> next slice realigns those schemas to the strict backend shape and
+> degrades gracefully where the backend errors or is missing.
 
 ---
 
@@ -825,18 +832,88 @@ Acceptance criteria:
 
 Tasks:
 
-- [ ] Top-level error boundary that catches lazy chunk load failures and
+- [x] Top-level error boundary that catches lazy chunk load failures and
       component render errors, with Retry (reset boundary state) and
       Reload (full page reload) actions.
-- [ ] Prefetch the lazy page chunk associated with a sidebar nav link
+- [x] Prefetch the lazy page chunk associated with a sidebar nav link
       on `pointerenter`/`focus` so cold-route navigation feels instant.
 
 Acceptance criteria:
 
-- [ ] A broken lazy chunk does not leave the app blank — the user sees
+- [x] A broken lazy chunk does not leave the app blank — the user sees
       a friendly fallback with retry actions instead.
-- [ ] Hovering or focusing a sidebar link starts loading that route's
+- [x] Hovering or focusing a sidebar link starts loading that route's
       chunk before the click resolves.
+
+### API contract reconciliation — Match Maestro's actual shapes
+
+A live audit against the MiMi-deployed Maestro surfaced four real schema
+drifts plus a couple of expected gaps. Until these realign, the home
+page shows `0 healthy`/`0 hot` despite real systems being online, and
+the Settings and Monitoring pages render unparseable-response errors.
+
+Verified backend reality:
+
+```
+/api/v1/dashboard/summary
+  systems: { online, offline, total, items: [{ id, name, status }] }
+  models:  { online, offline, total }
+  jobs:    { by_priority, by_status:{ queued, running, completed, failed, cancelled }, oldest_queued_age_seconds }
+  recent_events: []
+
+/api/v1/settings
+  { settings: { api_host, api_port, default_fast_model, *_api_key, postgres_dsn_set, ... }, updated_at }
+  (flat object, not an items array)
+
+/api/v1/monitoring/overview
+  { events:{by_level,total}, jobs:{by_status,by_priority,oldest_queued_age_seconds}, providers:{darkbase,mimi,sparky}, window_seconds }
+  (no top-level status/requests/errors/latency_p95_ms)
+
+/api/v1/monitoring/alerts
+  { items: [{ id, message, severity, since, source }] }
+  (severity not level, since not created_at, no title, no pagination)
+
+/api/v1/jobs/summary      → 500 "failed to get job"  (backend bug)
+/api/v1/monitoring/usage  → 404                       (deferred)
+/api/v1/media/assets      → 404                       (deferred)
+```
+
+Tasks:
+
+- [ ] Update `dashboardSummarySchema` and `DashboardPage` to read
+      `systems.online`, `models.online`, and `jobs.by_status.{queued,
+      running,failed}` directly. Drop the obsolete `healthy`/`hot`
+      terminology in the schema; keep the labels human-friendly in the UI.
+- [ ] Add an adapter in `fetchSettings` that maps the backend's
+      `{ settings: {...}, updated_at }` payload into the existing
+      `[{ key, value }]` items list the page already consumes.
+- [ ] Rebuild `monitoringOverviewSchema` and `alertsResponseSchema`
+      around the real backend shapes. Derive overall status from
+      `providers`, requests/errors from `events.by_level`, and hide the
+      Latency p95 tile when the field is absent. Map alerts'
+      `severity` → level badge, `since` → timestamp.
+- [ ] Hide the Jobs queue summary panel when `/api/v1/jobs/summary`
+      returns a 5xx, instead of surfacing a scary "Unable to load"
+      block. The rest of the Jobs page (list, filters, detail) keeps
+      working.
+- [ ] Document the deploy refresh: the cluster is currently serving a
+      bundle from before the lazy-loading / latency-tile work
+      (`index-qb7u5ehl.js`, single chunk, no vendor split). Once the
+      contract fixes land, the container image needs a rebuild so the
+      MiMi rollout picks up both the contract fixes and the prior
+      polish work.
+
+Acceptance criteria:
+
+- [ ] Dashboard tiles show real counts (e.g. `2 online` / `1 online`).
+- [ ] Settings page lists real keys with secrets masked.
+- [ ] Monitoring overview renders without parse errors and reflects
+      provider status / event counts from the live response.
+- [ ] Monitoring alerts list shows real alerts with correct severity.
+- [ ] Jobs page no longer shows a scary failure for the queue summary;
+      the rest of the page keeps working.
+- [ ] Deploy refresh procedure is documented (or a no-op bump
+      committed) so the MiMi cluster can pick up current main.
 
 ---
 
