@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { Mic, WandSparkles } from "lucide-react";
-import { fetchMediaAssets, generateMedia, uploadMedia } from "@/api/media";
+import { fetchMediaAssets, generateMedia, uploadMedia, type MediaAsset } from "@/api/media";
 import { fetchJob, isActiveJobStatus } from "@/api/jobs";
 import { fetchModels } from "@/api/systems";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -332,6 +332,7 @@ export function MediaPage() {
           <div className="asset-grid">
             {assetsQuery.data.items.map((asset) => (
               <article className="asset-card" key={asset.id}>
+                <AssetPreview asset={asset} />
                 <div>
                   <h3>{asset.title}</h3>
                   <p>{formatDateTime(asset.created_at)}</p>
@@ -371,4 +372,42 @@ function InlineJobStatus({ jobId, fallbackStatus }: InlineJobStatusProps) {
       {typeof progress === "number" ? ` (${progress}%)` : ""}
     </p>
   );
+}
+
+function AssetPreview({ asset }: { asset: MediaAsset }) {
+  if (!asset.uri) return null;
+  const type = asset.type.toLowerCase();
+  if (type.startsWith("image")) {
+    return (
+      <img
+        className="asset-preview asset-preview-image"
+        src={asset.uri}
+        alt={asset.title}
+        loading="lazy"
+      />
+    );
+  }
+  if (type.startsWith("video")) {
+    return (
+      <video
+        className="asset-preview asset-preview-video"
+        src={asset.uri}
+        controls
+        preload="metadata"
+        aria-label={asset.title}
+      />
+    );
+  }
+  if (type.startsWith("audio")) {
+    return (
+      <audio
+        className="asset-preview asset-preview-audio"
+        src={asset.uri}
+        controls
+        preload="metadata"
+        aria-label={asset.title}
+      />
+    );
+  }
+  return null;
 }
