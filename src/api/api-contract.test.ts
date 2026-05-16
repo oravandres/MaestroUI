@@ -10,6 +10,7 @@ import {
   uploadDocument,
 } from "@/api/knowledge";
 import { fetchMediaAssets, generateMedia, uploadMedia } from "@/api/media";
+import { fetchUsageSummary } from "@/api/monitoring";
 import { createRagRun, fetchRagRun } from "@/api/rag";
 import { saveSetting } from "@/api/settings";
 
@@ -470,5 +471,54 @@ describe("API route contracts", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(fetchMediaAssets()).rejects.toThrow();
+  });
+
+  it("loads usage summary from /api/v1/monitoring/usage and parses the canonical shape", async () => {
+    const fetchMock = stubFetch({
+      requests: 7,
+      tokens: 1234,
+      cost_usd: null,
+      by_model: [
+        { model_id: "darkbase-fast", requests: 4, tokens: 800 },
+        { model_id: "sparky-premium", requests: 3, tokens: 434 },
+      ],
+    });
+
+    const summary = await fetchUsageSummary();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/monitoring/usage",
+      expect.objectContaining({})
+    );
+    expect(summary.requests).toBe(7);
+    expect(summary.tokens).toBe(1234);
+    expect(summary.by_model).toHaveLength(2);
+    expect(summary.by_model[0]).toEqual({
+      model_id: "darkbase-fast",
+      requests: 4,
+      tokens: 800,
+    });
+  });
+
+  it("treats a 404 from /api/v1/monitoring/usage as an empty summary so deploy ordering does not toast", async () => {
+    const notFoundBody = JSON.stringify({
+      error: { code: "not_found", message: "not found" },
+    });
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(notFoundBody, {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const summary = await fetchUsageSummary();
+
+    expect(summary).toEqual({
+      requests: 0,
+      tokens: 0,
+      cost_usd: null,
+      by_model: [],
+    });
   });
 });

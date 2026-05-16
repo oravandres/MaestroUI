@@ -874,9 +874,15 @@ Verified backend reality:
   { items: [{ id, message, severity, since, source }] }
   (severity not level, since not created_at, no title, no pagination)
 
-/api/v1/jobs/summary      → 500 "failed to get job"  (backend bug)
-/api/v1/monitoring/usage  → 404                       (deferred)
-/api/v1/media/assets      → 404                       (deferred)
+/api/v1/jobs/summary      → never registered upstream  (UI fans out
+                                                       to /queues +
+                                                       /workers)
+/api/v1/monitoring/usage  → shipped via Maestro PR  (per-model usage
+                                                    aggregated from
+                                                    chat messages)
+/api/v1/media/assets      → shipped via Maestro PR  (projection of
+                                                    completed media
+                                                    and audio jobs)
 ```
 
 Tasks:
@@ -897,6 +903,16 @@ Tasks:
 - [x] Hide the Jobs queue summary tiles and error panel when
       `/api/v1/jobs/summary` errors. The Jobs list, status filter, and
       cancel actions stay visible.
+- [x] Replace `fetchQueueSummary`'s call to the unregistered
+      `/api/v1/jobs/summary` with a `/api/v1/queues + /api/v1/workers`
+      fan-out, and render the JobsPage cards from cached data so a
+      transient refetch failure shows a non-blocking warning instead
+      of tearing the panel down (PR review-lessons rule on coexisting
+      `data` and `isError`).
+- [x] Make `fetchMediaAssets` and `fetchUsageSummary` tolerant of 404
+      so the UI does not flash an error during the deploy window where
+      the new MaestroUI is live but the matching Maestro release with
+      `/media/assets` and `/monitoring/usage` has not rolled out yet.
 - [x] Document the deploy refresh procedure in `README.md` —
       two-repo flow (MaestroUI publishes the image, MiMi pins the
       digest), commands to verify the live bundle hash, and what to
