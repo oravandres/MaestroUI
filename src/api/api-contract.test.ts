@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createConversation } from "@/api/chat";
 import { submitCodeReview } from "@/api/coding";
+import { fetchQueueSummary } from "@/api/jobs";
 import {
   createSource,
   fetchDocument,
@@ -8,7 +9,7 @@ import {
   updateSource,
   uploadDocument,
 } from "@/api/knowledge";
-import { generateMedia, uploadMedia } from "@/api/media";
+import { fetchMediaAssets, generateMedia, uploadMedia } from "@/api/media";
 import { createRagRun, fetchRagRun } from "@/api/rag";
 import { saveSetting } from "@/api/settings";
 
@@ -389,5 +390,85 @@ describe("API route contracts", () => {
         body: JSON.stringify({ settings: { "ui.theme": "light" } }),
       })
     );
+  });
+
+  it("loads queue summary from /api/v1/queues + /api/v1/workers, never the broken /api/v1/jobs/summary", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation((url: string) => {
+        if (url === "/api/v1/queues") {
+          return Promise.resolve(
+            jsonResponse({
+              by_status: { queued: 2, running: 1, completed: 0, failed: 0, cancelled: 0 },
+              by_priority: { high: 0, normal: 3, low: 0 },
+              oldest_queued_age_seconds: 7,
+            })
+          );
+        }
+        if (url === "/api/v1/workers") {
+          return Promise.resolve(
+            jsonResponse({
+              items: [
+                {
+                  id: "worker-1",
+                  hostname: "maestro-1",
+                  pid: 1,
+                  started_at: "2026-05-16T17:00:00Z",
+                  last_heartbeat_at: "2026-05-16T17:01:00Z",
+                  metadata: {},
+                },
+              ],
+              pagination: { total: 1 },
+            })
+          );
+        }
+        throw new Error(`unexpected fetch url: ${url}`);
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const summary = await fetchQueueSummary();
+
+    expect(summary).toEqual({ queued: 2, running: 1, workers: 1 });
+    const requestedUrls = fetchMock.mock.calls.map(([url]) => url);
+    expect(requestedUrls).toEqual(
+      expect.arrayContaining(["/api/v1/queues", "/api/v1/workers"])
+    );
+    expect(requestedUrls).not.toContain("/api/v1/jobs/summary");
+  });
+
+  it("treats a 404 from /api/v1/media/assets as an empty gallery", async () => {
+    const notFoundBody = JSON.stringify({
+      error: { code: "not_found", message: "not found" },
+    });
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(notFoundBody, {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await fetchMediaAssets();
+
+    expect(result).toEqual({ items: [], pagination: { total: 0 } });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/media/assets",
+      expect.objectContaining({})
+    );
+  });
+
+  it("propagates non-404 failures from /api/v1/media/assets without swallowing them", async () => {
+    const errorBody = JSON.stringify({
+      error: { code: "internal_error", message: "boom" },
+    });
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(errorBody, {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchMediaAssets()).rejects.toThrow();
   });
 });

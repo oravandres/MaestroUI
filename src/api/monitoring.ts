@@ -96,22 +96,9 @@ export async function fetchAlerts(): Promise<AlertsResponse> {
   return parseApiResponse(alertsResponseSchema, data, "monitoring alerts");
 }
 
-const usageSummarySchema = z.object({
-  requests: z.number().int().nonnegative(),
-  tokens: z.number().int().nonnegative(),
-  cost_usd: z.number().nonnegative().optional().nullable(),
-  by_model: z.array(
-    z.object({
-      model_id: z.string(),
-      requests: z.number().int().nonnegative(),
-      tokens: z.number().int().nonnegative(),
-    })
-  ),
-});
-
-export type UsageSummary = z.infer<typeof usageSummarySchema>;
-
-export async function fetchUsageSummary(): Promise<UsageSummary> {
-  const data = await fetchJson<unknown>("/api/v1/monitoring/usage");
-  return parseApiResponse(usageSummarySchema, data, "usage summary");
-}
+// NOTE: a `fetchUsageSummary()` helper used to live here and called
+// `/api/v1/monitoring/usage`, but Maestro never registered that route — the
+// production deployment 404s and bubbles up as a "usage summary response did
+// not match the expected shape" banner. The helper and its accompanying
+// `<section>` in MonitoringPage have been removed pending a real backend
+// endpoint. Re-add both together when Maestro ships `/monitoring/usage`.

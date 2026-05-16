@@ -5,7 +5,6 @@ import {
   fetchAlerts,
   fetchMonitoringEvents,
   fetchMonitoringOverview,
-  fetchUsageSummary,
 } from "@/api/monitoring";
 import { DataTable } from "@/components/common/DataTable";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -47,11 +46,6 @@ export function MonitoringPage() {
   const alertsQuery = useQuery({
     queryKey: ["monitoring-alerts"],
     queryFn: fetchAlerts,
-    retry: false,
-  });
-  const usageQuery = useQuery({
-    queryKey: ["usage-summary"],
-    queryFn: fetchUsageSummary,
     retry: false,
   });
 
@@ -172,33 +166,11 @@ export function MonitoringPage() {
         </section>
       </div>
 
-      <section className="panel">
-        <h2>Usage</h2>
-        {usageQuery.isLoading ? <LoadingState label="Loading usage" /> : null}
-        {usageQuery.isError ? (
-          <ErrorState error={usageQuery.error} onRetry={() => void usageQuery.refetch()} />
-        ) : null}
-        {usageQuery.data ? (
-          <>
-            <p className="section-summary">
-              {formatNumber(usageQuery.data.requests)} requests, {formatNumber(usageQuery.data.tokens)} tokens.
-            </p>
-            {usageQuery.data.by_model.length === 0 ? <EmptyState title="No model usage" /> : null}
-            {usageQuery.data.by_model.length ? (
-              <DataTable
-                caption="Model usage"
-                items={usageQuery.data.by_model}
-                getKey={(row) => row.model_id}
-                columns={[
-                  { key: "model", header: "Model", render: (row) => row.model_id },
-                  { key: "requests", header: "Requests", render: (row) => formatNumber(row.requests) },
-                  { key: "tokens", header: "Tokens", render: (row) => formatNumber(row.tokens) },
-                ]}
-              />
-            ) : null}
-          </>
-        ) : null}
-      </section>
+      {/*
+        Usage section intentionally hidden: Maestro has not shipped
+        /api/v1/monitoring/usage yet. Restore this <section> together with
+        fetchUsageSummary in src/api/monitoring.ts once the backend lands.
+      */}
     </div>
   );
 }

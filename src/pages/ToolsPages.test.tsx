@@ -9,7 +9,6 @@ import {
   fetchAlerts,
   fetchMonitoringEvents,
   fetchMonitoringOverview,
-  fetchUsageSummary,
 } from "@/api/monitoring";
 import { analyzeReasoning, compareReasoning } from "@/api/reasoning";
 import { fetchSettings, saveSetting } from "@/api/settings";
@@ -44,7 +43,6 @@ vi.mock("@/api/monitoring", () => ({
   fetchAlerts: vi.fn(),
   fetchMonitoringEvents: vi.fn(),
   fetchMonitoringOverview: vi.fn(),
-  fetchUsageSummary: vi.fn(),
 }));
 
 vi.mock("@/api/reasoning", () => ({
@@ -162,12 +160,6 @@ describe("PR3 tool pages", () => {
     });
     vi.mocked(fetchMonitoringEvents).mockResolvedValue({ items: [], pagination: { total: 0 } });
     vi.mocked(fetchAlerts).mockResolvedValue({ items: [] });
-    vi.mocked(fetchUsageSummary).mockResolvedValue({
-      requests: 12,
-      tokens: 345,
-      cost_usd: null,
-      by_model: [],
-    });
   });
 
   it("validates coding input and shows submit failure state", async () => {
@@ -868,7 +860,11 @@ describe("PR3 tool pages", () => {
 
     expect(await screen.findByText("No monitoring events")).toBeInTheDocument();
     expect(await screen.findByText("No active alerts")).toBeInTheDocument();
-    expect(await screen.findByText("No model usage")).toBeInTheDocument();
+    // The "Usage" tile is intentionally not rendered until Maestro ships
+    // /api/v1/monitoring/usage, so we explicitly assert it stays hidden to
+    // catch a future regression that re-introduces the broken contract.
+    expect(screen.queryByRole("heading", { name: /usage/i })).not.toBeInTheDocument();
+    expect(screen.queryByText("No model usage")).not.toBeInTheDocument();
 
     await user.selectOptions(screen.getByLabelText(/level/i), "error");
 
