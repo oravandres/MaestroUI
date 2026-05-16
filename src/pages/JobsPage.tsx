@@ -69,14 +69,21 @@ export function JobsPage() {
         <p className="page-subtitle">Queued, running, completed, and failed Maestro work.</p>
       </header>
 
-      {summaryQuery.isError ? null : (
-        <div className="stats-grid">
-          <QueueCard label="Queued" value={summaryQuery.data?.queued} />
-          <QueueCard label="Running" value={summaryQuery.data?.running} />
-          <QueueCard label="Workers" value={summaryQuery.data?.workers} />
-          <QueueCard label="Visible jobs" value={jobsQuery.data?.items.length} />
-        </div>
-      )}
+      {summaryQuery.data !== undefined ? (
+        <>
+          <div className="stats-grid">
+            <QueueCard label="Queued" value={summaryQuery.data.queued} />
+            <QueueCard label="Running" value={summaryQuery.data.running} />
+            <QueueCard label="Workers" value={summaryQuery.data.workers} />
+            <QueueCard label="Visible jobs" value={jobsQuery.data?.items.length} />
+          </div>
+          {summaryQuery.isError ? (
+            <p className="muted-note" role="status">
+              Queue summary failed to refresh. Showing the last known counts.
+            </p>
+          ) : null}
+        </>
+      ) : null}
 
       <section className="panel">
         <label className="field compact-field">

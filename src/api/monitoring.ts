@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { fetchJson } from "@/api/client";
+import { ApiError, fetchJson } from "@/api/client";
 import { jsonObjectSchema, paginationSchema, parseApiResponse } from "@/api/parse";
 
 export const eventSchema = z.object({
@@ -111,7 +111,25 @@ const usageSummarySchema = z.object({
 
 export type UsageSummary = z.infer<typeof usageSummarySchema>;
 
+const emptyUsageSummary: UsageSummary = {
+  requests: 0,
+  tokens: 0,
+  cost_usd: null,
+  by_model: [],
+};
+
 export async function fetchUsageSummary(): Promise<UsageSummary> {
-  const data = await fetchJson<unknown>("/api/v1/monitoring/usage");
-  return parseApiResponse(usageSummarySchema, data, "usage summary");
+  try {
+    const data = await fetchJson<unknown>("/api/v1/monitoring/usage");
+    return parseApiResponse(usageSummarySchema, data, "usage summary");
+  } catch (error) {
+    // Treat the missing-route case as "no usage yet" so the deploy
+    // ordering (UI before backend, or vice versa) does not produce a
+    // user-visible banner. Real 5xx responses still propagate so the
+    // backend's structured error handling stays observable.
+    if (error instanceof ApiError && error.status === 404) {
+      return emptyUsageSummary;
+    }
+    throw error;
+  }
 }

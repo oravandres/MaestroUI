@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { fetchJson, postFormData, postJson } from "@/api/client";
+import { ApiError, fetchJson, postFormData, postJson } from "@/api/client";
 import { jsonObjectSchema, paginationSchema, parseApiResponse } from "@/api/parse";
 
 export const mediaAssetSchema = z.object({
@@ -46,8 +46,22 @@ export interface UploadMediaInput {
 
 export async function fetchMediaAssets(type?: string): Promise<MediaAssetsResponse> {
   const suffix = type ? `?type=${encodeURIComponent(type)}` : "";
-  const data = await fetchJson<unknown>(`/api/v1/media/assets${suffix}`);
-  return parseApiResponse(mediaAssetsResponseSchema, data, "media assets");
+  try {
+    const data = await fetchJson<unknown>(`/api/v1/media/assets${suffix}`);
+    return parseApiResponse(mediaAssetsResponseSchema, data, "media assets");
+  } catch (error) {
+    // Maestro PLAN.md ticks /media/assets as shipped, but the route is not
+    // actually registered yet. Until the backend lands it, treat the 404
+    // as an empty gallery so MediaPage shows the standard "No media
+    // assets" empty state instead of a generic ErrorState. Anything else
+    // (including a real 500) keeps surfacing as an error so backend bugs
+    // remain visible. Drop this fallback once `/api/v1/media/assets`
+    // ships in Maestro and the live deployment includes it.
+    if (error instanceof ApiError && error.status === 404) {
+      return { items: [], pagination: { total: 0 } };
+    }
+    throw error;
+  }
 }
 
 export async function generateMedia(input: GenerateMediaInput): Promise<MediaJobResponse> {
