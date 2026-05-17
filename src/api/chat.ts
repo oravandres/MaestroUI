@@ -215,17 +215,152 @@ function tokenFromPayload(payload: unknown): string | undefined {
   return undefined;
 }
 
-function emitStreamLine(line: string, onToken: (token: string) => void) {
-  const trimmed = line.trim();
-  if (trimmed === "" || trimmed.startsWith(":")) return;
-  const data = trimmed.startsWith("data:") ? trimmed.slice(5).trim() : trimmed;
-  if (data === "[DONE]") return;
+// StreamEventError is raised when Maestro emits `event: error` mid-stream
+// (see Maestro/internal/chat/handlers.go:641 — the SSE side-channel for
+// upstream-stream failures). ConversationPage's catch block already
+// surfaces thrown errors as the message-failed banner; throwing this
+// lets the stream error reach the UI instead of being silently swallowed
+// by the parser, which used to "emit" the error payload as token text.
+export class StreamEventError extends Error {
+  readonly code: string;
+  readonly payload: Record<string, unknown> | undefined;
+
+  constructor(code: string, message: string, payload?: Record<string, unknown>) {
+    super(message);
+    this.name = "StreamEventError";
+    this.code = code;
+    this.payload = payload;
+  }
+}
+
+// SSEEvent is one fully buffered Server-Sent Event frame as defined in
+// https://html.spec.whatwg.org/multipage/server-sent-events.html. Maestro
+// emits the three event names below via sseWriter.event() at
+// Maestro/internal/chat/streaming.go:255:
+//
+//   * `token` — payload `{delta: string}` — one chunk per upstream token.
+//   * `done`  — payload `{message_id, model, system, mode, usage,
+//               latency_ms}` — terminal frame; closes the stream.
+//   * `error` — payload `{code, message}` — upstream-side failure that
+//               surfaced mid-stream.
+type SSEEvent = {
+  event: string;
+  data: string;
+};
+
+// parseSSEFrames takes the rolling text buffer that accumulates from the
+// Response.body reader and pulls fully-terminated SSE event frames out
+// of it (defined as blank-line delimited groups of `field: value`
+// lines). Whatever is left after the last blank line is returned in
+// `remainder` so the caller can keep appending bytes from the next
+// fetch chunk before re-parsing.
+//
+// This is the load-bearing fix for the bug where the chat UI rendered
+// "event: tokenOkayevent: token theevent: token user..." — the previous
+// parser walked the byte stream one line at a time and treated every
+// non-`data:` line as a token to forward verbatim. The `event: <name>`
+// field lines that the SSE protocol emits before each frame were
+// therefore concatenated into the assistant's visible message. SSE is
+// inherently a frame protocol (field lines BELONG to the next blank-line
+// terminated event), and parsing it line-by-line cannot be correct.
+function parseSSEFrames(buffer: string): { events: SSEEvent[]; remainder: string } {
+  const events: SSEEvent[] = [];
+  const lines = buffer.split(/\r?\n/);
+  // Anything after the last newline could be a partial line; if the
+  // buffer happens to end in a blank line the trailing element will be
+  // "" and the loop below will terminate the in-flight event cleanly
+  // before this code runs.
+  const remainder = lines.pop() ?? "";
+
+  let eventName = "message";
+  let dataLines: string[] = [];
+
+  const flush = () => {
+    if (dataLines.length === 0 && eventName === "message") return;
+    events.push({ event: eventName, data: dataLines.join("\n") });
+    eventName = "message";
+    dataLines = [];
+  };
+
+  for (const rawLine of lines) {
+    // Per spec the BOM at the start of the stream is the only required
+    // strip; line.trim() would also eat embedded spaces inside `data:`
+    // payloads, so we only chomp the trailing CR that split() may have
+    // left when the upstream uses CRLF.
+    const line = rawLine.replace(/\r$/, "");
+
+    if (line === "") {
+      flush();
+      continue;
+    }
+    if (line.startsWith(":")) {
+      // SSE comment / keep-alive — explicitly ignored.
+      continue;
+    }
+    const colonIndex = line.indexOf(":");
+    const field = colonIndex === -1 ? line : line.slice(0, colonIndex);
+    let value = colonIndex === -1 ? "" : line.slice(colonIndex + 1);
+    if (value.startsWith(" ")) value = value.slice(1);
+
+    switch (field) {
+      case "event":
+        eventName = value || "message";
+        break;
+      case "data":
+        dataLines.push(value);
+        break;
+      case "id":
+      case "retry":
+        // Recognized but not interesting for chat streaming.
+        break;
+      default:
+        // Unknown fields are ignored per the SSE spec; CRUCIALLY we no
+        // longer forward them to onToken, which is what caused the
+        // disappearing-text-becomes-`event: token`-text bug.
+        break;
+    }
+  }
+
+  return { events, remainder };
+}
+
+function dispatchSSEEvent(event: SSEEvent, onToken: (token: string) => void): void {
+  // OpenAI/legacy compatibility: a bare `data: [DONE]` sentinel inside
+  // an unnamed event frame still terminates the stream cleanly.
+  if (event.data === "[DONE]") return;
+
+  let parsed: unknown;
   try {
-    const parsed = JSON.parse(data) as unknown;
-    const token = tokenFromPayload(parsed);
-    if (token) onToken(token);
+    parsed = JSON.parse(event.data) as unknown;
   } catch {
-    onToken(data);
+    // A non-JSON `data:` payload is invalid for any of Maestro's three
+    // event names; ignore it rather than forwarding the raw string as
+    // if it were a token (the historical behaviour that surfaced
+    // protocol garbage in the UI).
+    return;
+  }
+
+  switch (event.event) {
+    case "error": {
+      const obj =
+        parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
+      const code = typeof obj.code === "string" ? obj.code : "stream_error";
+      const message =
+        typeof obj.message === "string" ? obj.message : "The chat stream failed.";
+      throw new StreamEventError(code, message, obj);
+    }
+    case "done":
+      // Terminal frame from sseWriter.event("done", ...) — nothing to
+      // emit; ConversationPage refetches the conversation once the
+      // promise resolves so the persisted assistant turn replaces the
+      // live buffer.
+      return;
+    case "token":
+    case "message":
+    default: {
+      const token = tokenFromPayload(parsed);
+      if (token) onToken(token);
+    }
   }
 }
 
@@ -266,15 +401,23 @@ export async function streamChatMessage(
       const { value, done } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split(/\r?\n/);
-      buffer = lines.pop() ?? "";
-      for (const line of lines) emitStreamLine(line, options.onToken);
+      const { events, remainder } = parseSSEFrames(buffer);
+      buffer = remainder;
+      for (const event of events) dispatchSSEEvent(event, options.onToken);
     }
 
     buffer += decoder.decode();
-    if (buffer.trim() !== "") emitStreamLine(buffer, options.onToken);
+    // Trailing buffered bytes after the reader closes can still contain
+    // one final event if the upstream did not terminate it with a blank
+    // line. Append a synthetic blank line so parseSSEFrames flushes any
+    // in-flight frame instead of dropping it on the floor.
+    if (buffer.trim() !== "") {
+      const { events } = parseSSEFrames(`${buffer}\n\n`);
+      for (const event of events) dispatchSSEEvent(event, options.onToken);
+    }
   } catch (error) {
-    if (isAbortError(error) || error instanceof ApiError) throw error;
+    if (isAbortError(error) || error instanceof ApiError || error instanceof StreamEventError)
+      throw error;
     throw new NetworkError(
       error instanceof Error ? error.message : "The Maestro API could not be reached.",
       { path, method: "POST" },
