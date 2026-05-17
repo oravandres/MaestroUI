@@ -24,7 +24,7 @@ describe("streamChatMessage", () => {
 
     await streamChatMessage(
       "conversation-1",
-      { content: "hello", mode: "balanced" },
+      { message: "hello", mode: "balanced" },
       { onToken: (token) => tokens.push(token) }
     );
 
@@ -33,7 +33,10 @@ describe("streamChatMessage", () => {
       expect.stringContaining("/api/v1/conversations/conversation-1/messages"),
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({ content: "hello", mode: "balanced", stream: true }),
+        // Server's decodeJSON rejects unknown fields, so the body must use
+        // `message` (not `content`) per
+        // Maestro/internal/chat/handlers.go sendMessageRequest.
+        body: JSON.stringify({ message: "hello", mode: "balanced", stream: true }),
       })
     );
   });
@@ -46,7 +49,7 @@ describe("streamChatMessage", () => {
     await expect(
       streamChatMessage(
         "conversation-1",
-        { content: "hello", mode: "balanced" },
+        { message: "hello", mode: "balanced" },
         { signal: controller.signal, onToken: vi.fn() }
       )
     ).rejects.toMatchObject({ name: "AbortError" });
@@ -60,7 +63,7 @@ describe("streamChatMessage", () => {
     await expect(
       streamChatMessage(
         "conversation-1",
-        { content: "hello", mode: "balanced" },
+        { message: "hello", mode: "balanced" },
         { onToken: vi.fn() }
       )
     ).rejects.toBeInstanceOf(NetworkError);

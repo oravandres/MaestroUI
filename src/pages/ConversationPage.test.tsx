@@ -147,7 +147,7 @@ describe("ConversationPage", () => {
     await user.click(screen.getByRole("button", { name: /send/i }));
 
     expect(vi.mocked(streamChatMessage).mock.calls[0]?.[1]).toEqual({
-      content: "hello",
+      message: "hello",
       mode: "fast",
     });
   });
