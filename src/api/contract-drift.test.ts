@@ -30,6 +30,7 @@ import {
   createConversation,
   fetchConversation,
   fetchConversations,
+  fetchMessages,
 } from "@/api/chat";
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -145,6 +146,40 @@ const liveFixtures = {
     created_at: "2026-05-17T16:42:33.389333Z",
     updated_at: "2026-05-17T16:46:06.926009Z",
   },
+  // Maestro PR #34 adds the list-messages endpoint. Shape mirrors
+  // listConversations: `{items: [...]}` ordered by created_at ASC. No
+  // pagination wrapper today — small thread, bounded — but the parser
+  // accepts an additive `pagination` block if one shows up later.
+  "/api/v1/conversations/conversation-1/messages": {
+    items: [
+      {
+        id: "msg-user-1",
+        conversation_id: "conversation-1",
+        role: "user",
+        content: "What is life?",
+        model_id: null,
+        system_id: null,
+        mode: null,
+        sources: [],
+        usage: {},
+        metadata: {},
+        created_at: "2026-05-17T16:42:34.000000Z",
+      },
+      {
+        id: "msg-assistant-1",
+        conversation_id: "conversation-1",
+        role: "assistant",
+        content: "Life is beautiful.",
+        model_id: "qwen3.6:35b-a3b",
+        system_id: "darkbase",
+        mode: "fast",
+        sources: [],
+        usage: { prompt_tokens: 10, completion_tokens: 4, total_tokens: 14 },
+        metadata: { latency_ms: 350 },
+        created_at: "2026-05-17T16:42:40.000000Z",
+      },
+    ],
+  },
   // Maestro PR adds /media/assets; a populated response is expected
   // post-deploy. Listed shape mirrors mediaAssetSchema.
   "/api/v1/media/assets": {
@@ -247,12 +282,25 @@ describe("contract drift against live Maestro fixtures", () => {
     expect(list.pagination.total).toBe(1);
   });
 
-  it("parses the flat /api/v1/conversations/{id} detail shape and synthesises an empty messages array", async () => {
+  it("parses the flat /api/v1/conversations/{id} detail shape and combines it with the parallel messages fetch", async () => {
     stubFromFixtures();
     const detail = await fetchConversation("conversation-1");
     expect(detail.conversation.id).toBe("conversation-1");
     expect(detail.conversation.title).toBe("Production chat");
-    expect(detail.messages).toEqual([]);
+    expect(detail.messages).toHaveLength(2);
+    expect(detail.messages[0]).toMatchObject({ role: "user", content: "What is life?" });
+    expect(detail.messages[1]).toMatchObject({
+      role: "assistant",
+      content: "Life is beautiful.",
+      system_id: "darkbase",
+    });
+  });
+
+  it("parses the /api/v1/conversations/{id}/messages list shape on its own", async () => {
+    stubFromFixtures();
+    const messages = await fetchMessages("conversation-1");
+    expect(messages).toHaveLength(2);
+    expect(messages.map((m) => m.role)).toEqual(["user", "assistant"]);
   });
 
   it("parses a flat POST /api/v1/conversations response (no `conversation` envelope)", async () => {
