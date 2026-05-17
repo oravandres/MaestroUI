@@ -31,6 +31,17 @@ export const conversationSchema = z.object({
   updated_at: z.string(),
 });
 
+// messageSchema is the rich client-side message shape rendered by
+// ConversationPage. The Maestro server currently has no "list messages for
+// a conversation" endpoint (GET /api/v1/conversations/{id}/messages returns
+// 405), and the conversation detail endpoint returns just the flat
+// Conversation row — see conversationDetailSchema and fetchConversation
+// below. Until that endpoint exists, ConversationPage always sees
+// `messages: []` from a fresh load and any user/assistant turn from the
+// current session is rendered live from the streamed delta buffer, not
+// from persisted state. Keeping this schema intact means we don't have to
+// touch the rendering surface when the backend ships the messages list
+// and starts populating these fields.
 export const messageSchema = z.object({
   id: z.string(),
   conversation_id: z.string(),
@@ -50,23 +61,36 @@ const conversationsResponseSchema = z.object({
   pagination: paginationSchema,
 });
 
-const conversationDetailSchema = z.object({
-  conversation: conversationSchema,
-  messages: z.array(messageSchema),
-});
-
-const createConversationResponseSchema = z.object({
-  conversation: conversationSchema,
-});
-
+// Server-side `nonStreamResponse` shape from
+// Maestro/internal/chat/handlers.go — flat, not enveloped under `message`.
+// Mostly informational here because every UI codepath goes through
+// streamChatMessage; sendMessage() is the non-streaming fallback used by a
+// few internal scripts and the contract tests.
 const sendMessageResponseSchema = z.object({
-  message: messageSchema.optional(),
+  message_id: z.string(),
+  content: z.string(),
+  model: z.string(),
+  system: z.string(),
+  usage: jsonObjectSchema,
+  latency_ms: z.number(),
 });
 
 export type Conversation = z.infer<typeof conversationSchema>;
 export type Message = z.infer<typeof messageSchema>;
 export type ConversationsResponse = z.infer<typeof conversationsResponseSchema>;
-export type ConversationDetail = z.infer<typeof conversationDetailSchema>;
+export type SendMessageResponse = z.infer<typeof sendMessageResponseSchema>;
+
+// ConversationDetail is the view-model ConversationPage renders. The
+// server's GET /api/v1/conversations/{id} response is just the flat
+// Conversation row; `fetchConversation` wraps it into this shape with an
+// empty messages list so the page doesn't have to special-case "no
+// history endpoint yet". When the server grows a real
+// GET /conversations/{id}/messages, populate `messages` from a parallel
+// fetch here and no page change is needed.
+export type ConversationDetail = {
+  conversation: Conversation;
+  messages: Message[];
+};
 
 export interface CreateConversationInput {
   title: string;
@@ -74,7 +98,7 @@ export interface CreateConversationInput {
 }
 
 export interface SendMessageInput {
-  content: string;
+  message: string;
   mode: ChatMode;
 }
 
@@ -85,26 +109,26 @@ export async function fetchConversations(): Promise<ConversationsResponse> {
 
 export async function fetchConversation(id: string): Promise<ConversationDetail> {
   const data = await fetchJson<unknown>(`/api/v1/conversations/${id}`);
-  return parseApiResponse(conversationDetailSchema, data, "conversation");
+  const conversation = parseApiResponse(conversationSchema, data, "conversation");
+  return { conversation, messages: [] };
 }
 
 export async function createConversation(
   input: CreateConversationInput
 ): Promise<Conversation> {
   const data = await postJson<unknown>("/api/v1/conversations", input);
-  return parseApiResponse(createConversationResponseSchema, data, "create conversation")
-    .conversation;
+  return parseApiResponse(conversationSchema, data, "create conversation");
 }
 
 export async function sendMessage(
   conversationId: string,
   input: SendMessageInput
-): Promise<Message | undefined> {
+): Promise<SendMessageResponse> {
   const data = await postJson<unknown>(
     `/api/v1/conversations/${conversationId}/messages`,
     input
   );
-  return parseApiResponse(sendMessageResponseSchema, data, "send message").message;
+  return parseApiResponse(sendMessageResponseSchema, data, "send message");
 }
 
 export async function deleteConversation(id: string): Promise<void> {

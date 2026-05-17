@@ -26,6 +26,11 @@ import {
   fetchUsageSummary,
 } from "@/api/monitoring";
 import { fetchDashboardSummary } from "@/api/dashboard";
+import {
+  createConversation,
+  fetchConversation,
+  fetchConversations,
+} from "@/api/chat";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -113,6 +118,32 @@ const liveFixtures = {
       { model_id: "darkbase-fast", requests: 4, tokens: 800 },
       { model_id: "sparky-premium", requests: 3, tokens: 434 },
     ],
+  },
+  // Chat endpoints. Server returns FLAT shapes — `POST /conversations` is
+  // not enveloped under `conversation`, `GET /conversations/{id}` does NOT
+  // include a `messages` array (the messages list endpoint is a 405 today
+  // — ConversationPage shows an empty thread on fresh load and renders
+  // the live streaming buffer for the current turn). Mirrors what
+  // `curl -ks https://maestro-ui.mimi.local/api/v1/conversations` returns
+  // against MiMi commit a8e84b9f.
+  "/api/v1/conversations": {
+    items: [
+      {
+        id: "conversation-1",
+        title: "Production chat",
+        mode: "fast",
+        created_at: "2026-05-17T16:42:33.389333Z",
+        updated_at: "2026-05-17T16:46:06.926009Z",
+      },
+    ],
+    pagination: { limit: 20, offset: 0, total: 1 },
+  },
+  "/api/v1/conversations/conversation-1": {
+    id: "conversation-1",
+    title: "Production chat",
+    mode: "fast",
+    created_at: "2026-05-17T16:42:33.389333Z",
+    updated_at: "2026-05-17T16:46:06.926009Z",
   },
   // Maestro PR adds /media/assets; a populated response is expected
   // post-deploy. Listed shape mirrors mediaAssetSchema.
@@ -205,5 +236,33 @@ describe("contract drift against live Maestro fixtures", () => {
     const assets = await fetchMediaAssets();
     expect(assets.items[0].title).toBe("Architecture diagram");
     expect(assets.pagination.total).toBe(1);
+  });
+
+  it("parses the flat /api/v1/conversations list shape", async () => {
+    stubFromFixtures();
+    const list = await fetchConversations();
+    expect(list.items).toHaveLength(1);
+    expect(list.items[0].id).toBe("conversation-1");
+    expect(list.items[0].mode).toBe("fast");
+    expect(list.pagination.total).toBe(1);
+  });
+
+  it("parses the flat /api/v1/conversations/{id} detail shape and synthesises an empty messages array", async () => {
+    stubFromFixtures();
+    const detail = await fetchConversation("conversation-1");
+    expect(detail.conversation.id).toBe("conversation-1");
+    expect(detail.conversation.title).toBe("Production chat");
+    expect(detail.messages).toEqual([]);
+  });
+
+  it("parses a flat POST /api/v1/conversations response (no `conversation` envelope)", async () => {
+    // POST returns the same flat shape as GET, so reuse the GET fixture.
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(liveFixtures["/api/v1/conversations/conversation-1"]));
+    vi.stubGlobal("fetch", fetchMock);
+    const created = await createConversation({ title: "Production chat", mode: "fast" });
+    expect(created.id).toBe("conversation-1");
+    expect(created.mode).toBe("fast");
   });
 });

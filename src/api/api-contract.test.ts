@@ -33,18 +33,25 @@ describe("API route contracts", () => {
   });
 
   it("uses the backend conversation route without the legacy chat prefix", async () => {
+    // Server returns the flat Conversation row directly (no `conversation`
+    // envelope) per Maestro/internal/chat/handlers.go createConversation.
     const fetchMock = stubFetch({
-      conversation: {
-        id: "conversation-1",
-        title: "Planning",
-        mode: "balanced",
-        created_at: "2026-05-11T08:00:00Z",
-        updated_at: "2026-05-11T08:00:00Z",
-      },
+      id: "conversation-1",
+      title: "Planning",
+      mode: "balanced",
+      created_at: "2026-05-11T08:00:00Z",
+      updated_at: "2026-05-11T08:00:00Z",
     });
 
-    await createConversation({ title: "Planning", mode: "balanced" });
+    const created = await createConversation({ title: "Planning", mode: "balanced" });
 
+    expect(created).toEqual({
+      id: "conversation-1",
+      title: "Planning",
+      mode: "balanced",
+      created_at: "2026-05-11T08:00:00Z",
+      updated_at: "2026-05-11T08:00:00Z",
+    });
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/conversations",
       expect.objectContaining({

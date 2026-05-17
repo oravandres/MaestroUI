@@ -64,13 +64,13 @@ export function ConversationPage() {
     setStreamedText("");
     setSendError(null);
 
-    const content = draft.trim();
+    const message = draft.trim();
     setDraft("");
 
     try {
       await streamChatMessage(
         id,
-        { content, mode },
+        { message, mode },
         {
           signal: controller.signal,
           onToken: (token) => setStreamedText((current) => `${current}${token}`),
@@ -81,7 +81,7 @@ export function ConversationPage() {
       setStreamedText("");
     } catch (error) {
       if (!(error instanceof DOMException && error.name === "AbortError")) {
-        setDraft(content);
+        setDraft(message);
         setSendError(error);
       }
     } finally {
