@@ -61,6 +61,17 @@ const conversationsResponseSchema = z.object({
   pagination: paginationSchema,
 });
 
+// Maestro PR #34 adds GET /api/v1/conversations/{id}/messages which
+// returns `{items: [Message...]}` in chronological order. No pagination
+// wrapper today — a single thread is bounded; if any conversation
+// grows past a few hundred turns we'll need to add `pagination` here
+// and adapt the page to lazy-load. Until then keep the parser permissive
+// so a future `pagination` block is silently ignored rather than
+// throwing.
+const messagesResponseSchema = z.object({
+  items: z.array(messageSchema),
+});
+
 // Server-side `nonStreamResponse` shape from
 // Maestro/internal/chat/handlers.go — flat, not enveloped under `message`.
 // Mostly informational here because every UI codepath goes through
@@ -81,12 +92,16 @@ export type ConversationsResponse = z.infer<typeof conversationsResponseSchema>;
 export type SendMessageResponse = z.infer<typeof sendMessageResponseSchema>;
 
 // ConversationDetail is the view-model ConversationPage renders. The
-// server's GET /api/v1/conversations/{id} response is just the flat
-// Conversation row; `fetchConversation` wraps it into this shape with an
-// empty messages list so the page doesn't have to special-case "no
-// history endpoint yet". When the server grows a real
-// GET /conversations/{id}/messages, populate `messages` from a parallel
-// fetch here and no page change is needed.
+// server splits the surface across two endpoints —
+// GET /api/v1/conversations/{id}      -> flat Conversation row
+// GET /api/v1/conversations/{id}/messages -> {items: [Message...]}
+// — and `fetchConversation` fans them out in parallel and combines the
+// results into this shape, so the page does not have to coordinate
+// two queries. Failure semantics: if either fetch fails the combined
+// promise rejects, which ConversationPage already renders as
+// `<ErrorState onRetry=...>`. Empty messages list is the normal
+// post-create state and is shown as the "No messages yet" empty
+// state, not an error.
 export type ConversationDetail = {
   conversation: Conversation;
   messages: Message[];
@@ -107,10 +122,25 @@ export async function fetchConversations(): Promise<ConversationsResponse> {
   return parseApiResponse(conversationsResponseSchema, data, "conversations");
 }
 
+export async function fetchMessages(conversationId: string): Promise<Message[]> {
+  const data = await fetchJson<unknown>(
+    `/api/v1/conversations/${conversationId}/messages`
+  );
+  return parseApiResponse(messagesResponseSchema, data, "messages").items;
+}
+
 export async function fetchConversation(id: string): Promise<ConversationDetail> {
-  const data = await fetchJson<unknown>(`/api/v1/conversations/${id}`);
-  const conversation = parseApiResponse(conversationSchema, data, "conversation");
-  return { conversation, messages: [] };
+  // Fan out detail + history in parallel — the two endpoints are
+  // independent so Promise.all keeps load time at max(detail, list)
+  // instead of detail+list, and matters for long threads. Either rejecting
+  // surfaces as an ErrorState in the page via React Query's `isError`.
+  const [conversation, messages] = await Promise.all([
+    fetchJson<unknown>(`/api/v1/conversations/${id}`).then((data) =>
+      parseApiResponse(conversationSchema, data, "conversation")
+    ),
+    fetchMessages(id),
+  ]);
+  return { conversation, messages };
 }
 
 export async function createConversation(
