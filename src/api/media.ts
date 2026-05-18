@@ -19,10 +19,38 @@ const mediaAssetsResponseSchema = z.object({
   pagination: paginationSchema,
 });
 
-const mediaJobResponseSchema = z.object({
-  job_id: z.string(),
-  status: z.string(),
-});
+// Maestro's media/audio submit envelope is `{job_id, external_job_id?,
+// job: {... status ...}}` (see internal/media/handlers.go submitResponse).
+// Accept the rich envelope and project to the slim `{job_id, status}`
+// the UI consumers (MediaPage, tests) already use, so the Zod parse
+// no longer rejects a successful submission as "did not match the
+// expected shape" while the job is actually queued. The legacy
+// `{job_id, status}` shape is still accepted for backward-compat with
+// tests and any older Maestro build that lands in front of this UI.
+const mediaJobResponseSchema = z.preprocess(
+  (raw) => {
+    if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+      const obj = raw as Record<string, unknown>;
+      const inner = obj.job;
+      if (
+        typeof obj.status !== "string" &&
+        inner &&
+        typeof inner === "object" &&
+        !Array.isArray(inner) &&
+        typeof (inner as Record<string, unknown>).status === "string"
+      ) {
+        return { ...obj, status: (inner as Record<string, unknown>).status };
+      }
+    }
+    return raw;
+  },
+  z
+    .object({
+      job_id: z.string(),
+      status: z.string(),
+    })
+    .passthrough()
+);
 
 export type MediaAsset = z.infer<typeof mediaAssetSchema>;
 export type MediaAssetsResponse = z.infer<typeof mediaAssetsResponseSchema>;
