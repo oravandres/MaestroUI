@@ -18,6 +18,13 @@
   --radius-sm: 6px;
   --radius-md: 8px;
   --shadow-md: 0 14px 40px rgba(0, 0, 0, 0.26);
+  /* Render native form widgets (select dropdown popups, scrollbars,
+     date/time pickers) in dark mode so option text stays legible
+     against the OS-default popup chrome. Without this the option
+     list inherits --text-primary (#f8fafc, near-white) and renders
+     against the OS's default white menu background — see Media
+     Studio model dropdowns. */
+  color-scheme: dark;
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -623,6 +630,15 @@ a {
   background: rgba(255, 255, 255, 0.055);
   color: var(--text-primary);
   font: inherit;
+}
+
+/* Belt-and-suspenders for browsers that don't honor :root
+   `color-scheme: dark` (older Firefox/Chromium on Linux): explicitly
+   paint the option list with the panel surface so it stays readable
+   when the dropdown popup is open. */
+.field select option {
+  background-color: var(--surface-overlay);
+  color: var(--text-primary);
 }
 
 .field textarea {
