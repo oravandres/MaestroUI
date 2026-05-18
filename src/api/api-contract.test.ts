@@ -214,6 +214,45 @@ describe("API route contracts", () => {
     );
   });
 
+  // Regression: Maestro's submitResponse is `{job_id, external_job_id?,
+  // job: {... status ...}}` (oravandres/Maestro internal/media/handlers.go).
+  // Before the schema was loosened the Zod parse rejected this rich
+  // envelope as "did not match the expected shape", surfacing
+  // "Generation failed" in the UI even though the job was actually
+  // queued. Pin both the rich and slim shapes so the parse stays
+  // forgiving on either side of a Maestro upgrade.
+  it("accepts Maestro's rich {job_id, external_job_id, job} submit envelope", async () => {
+    stubFetch({
+      job_id: "maestro-job-1",
+      external_job_id: "sparky-job-1",
+      job: {
+        id: "maestro-job-1",
+        type: "media.image",
+        status: "queued",
+        priority: "normal",
+        progress: 0,
+      },
+    });
+    const result = await generateMedia({
+      type: "image",
+      prompt: "diagram",
+      model_id: "flux2-dev",
+    });
+    expect(result.job_id).toBe("maestro-job-1");
+    expect(result.status).toBe("queued");
+  });
+
+  it("still accepts the slim {job_id, status} legacy submit envelope", async () => {
+    stubFetch({ job_id: "legacy-1", status: "queued" });
+    const result = await generateMedia({
+      type: "image",
+      prompt: "diagram",
+      model_id: "flux2-dev",
+    });
+    expect(result.job_id).toBe("legacy-1");
+    expect(result.status).toBe("queued");
+  });
+
   it("routes audio uploads to ASR without a legacy media upload endpoint", async () => {
     const fetchMock = stubFetch({ job_id: "job-1", status: "queued" });
     const file = new File(["audio"], "sample.wav", { type: "audio/wav" });
